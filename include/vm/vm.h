@@ -55,8 +55,8 @@ struct thread;
  * 이 구조의 미리 정의된 멤버를 제거/수정하지 마세요. */
 struct page {
 	const struct page_operations *operations;
-	void *va;              /* Address in terms of user space , 사용자 공간 측면에서의 주소 */
-	struct frame *frame;   /* Back reference for frame, 프레임의 역참조 */
+	void *va;              /* Address in terms of user space , 사용자 공간 측면에서의 주소 -> 사용자 공간에 있는 페이지의 주소 */
+	struct frame *frame;   /* Back reference for frame 프레임의 역참조 -> 해당 페이지가 어떤 프레임 참조하는지 */
 
 	/* Your implementation */
 
@@ -81,8 +81,8 @@ struct page {
 /* The representation of "frame" 
    "프레임"의 표현입니다. */
 struct frame {
-	void *kva;
-	struct page *page;
+	void *kva;	//프레임의 커널 가상 주소를 가리키는 포인터 -> 페이지 프레임이 실제로 메모리에서 어디에 위치하는지
+	struct page *page; //프레임이 참조하는 페이지를 가리키는 포인터 -> 해당 프레임이 어떤 페이지를 가리키는지
 };
 
 /* The function table for page operations.
