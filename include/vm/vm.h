@@ -48,7 +48,12 @@ struct page {
 	/* Your implementation */
 
 	/* Per-type data are binded into the union.
-	 * Each function automatically detects the current union */
+	 * Each function automatically detects the current union 
+	   유형별 데이터는 유니언에 바인딩된다. 각 함수는 현재 유니언을 자동으로 감지한다. 
+	   
+	   유니언 자료형은 하나의 메모리 영역에 다른 타입의 데이터를 저장하는 것을 허용하는 특별한 자료형이다. 
+	   하나의 유니언은 여러 개의 멤버를 가질 수 있지만, 한 번에 멤버 중 하나의 값을 가질 수 있다.
+	   */
 	union {
 		struct uninit_page uninit;
 		struct anon_page anon;
@@ -85,6 +90,7 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+
 };
 
 #include "threads/thread.h"
