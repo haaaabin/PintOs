@@ -87,7 +87,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct hash_elem *e;
 
 	/* 할일: 이 함수를 채워주세요. */
-	page->addr = pg_round_down(va);
+	page->va = pg_round_down(va);
 	e = hash_find(&spt->hash_table, &page->hash_elem);
 	
 	if(e != NULL)
@@ -102,8 +102,14 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
+	
 	/* 할일: 이 함수를 채워주세요. */
-
+	if(is_user_vaddr(page->va)){
+		if(spt_find_page(spt, page->va) == NULL){
+			hash_insert(&spt->hash_table, &page->hash_elem);
+			succ = true;
+		}
+	}
 	return succ;
 }
 
