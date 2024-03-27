@@ -2,6 +2,7 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include "lib/kernel/hash.h"
 
 enum vm_type {
 	/* page not initialized 
@@ -59,6 +60,8 @@ struct page {
 	struct frame *frame;   /* Back reference for frame 프레임의 역참조 -> 해당 페이지가 어떤 프레임 참조하는지 */
 
 	/* Your implementation */
+	struct hash_elem hash_elem;		/*Hash table element*/
+	void *addr;		/* Virtual address */
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union 
@@ -113,7 +116,7 @@ struct page_operations {
  * 이 구조에 대해 특정 설계를 따르도록 강요하고 싶지 않습니다.
  * 모든 설계는 여러분의 몫입니다. */
 struct supplemental_page_table {
-
+	struct hash hash;
 };
 
 #include "threads/thread.h"
@@ -137,5 +140,5 @@ bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 void vm_dealloc_page (struct page *page);
 bool vm_claim_page (void *va);
 enum vm_type page_get_type (struct page *page);
-
+struct page *page_lookup (const void *address);
 #endif  /* VM_VM_H */

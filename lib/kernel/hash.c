@@ -239,7 +239,8 @@ hash_empty (struct hash *h) {
 #define FNV_64_PRIME 0x00000100000001B3UL
 #define FNV_64_BASIS 0xcbf29ce484222325UL
 
-/* Returns a hash of the SIZE bytes in BUF. */
+/* Returns a hash of the SIZE bytes in BUF. 
+   SIZE byte의 해시를 BUF로 반환한다.*/
 uint64_t
 hash_bytes (const void *buf_, size_t size) {
 	/* Fowler-Noll-Vo 32-bit hash, for bytes. */
@@ -275,6 +276,30 @@ uint64_t
 hash_int (int i) {
 	return hash_bytes (&i, sizeof i);
 }
+
+/* Returns a hash value for page p. 
+   페이지 p의 해시값을 반환한다. */
+uint64_t hash_hash_func (const struct hash_elem *e, void *aux)
+{
+	const struct page *p = hash_entry(e, struct page, hash_elem);
+	return hash_bytes(&p->addr, sizeof p->addr);
+}
+
+/* Returns true if page a precedes page b. 
+   페이지 a가 페이지 b보다 앞서는 경우 true를 반환한다.*/
+bool hash_less_func (const struct hash_elem *a, const struct hash_elem *b, void *aux)
+{
+	const struct page *pa = hash_entry(a, struct page, hash_elem);
+	const struct page *pb = hash_entry(b, struct page, hash_elem);
+
+	return pa->addr < pb->addr;
+}
+
+void hash_action_func (struct hash_elem *e, void *aux)
+{
+	
+}
+
 
 /* Returns the bucket in H that E belongs in. */
 static struct list *
