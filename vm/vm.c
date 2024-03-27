@@ -214,8 +214,10 @@ bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
 	/* 할일: 이 함수를 채워주세요. */
-
-	return vm_do_claim_page (page);
+	page = spt_find_page(&thread_current()->spt, va);
+	if(page == NULL)
+		return false;
+	return vm_do_claim_page(page);
 }
 
 /* Claim the PAGE and set up the mmu. */
@@ -232,7 +234,7 @@ vm_do_claim_page (struct page *page) {
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	/* 할 일: 페이지 테이블 항목을 삽입하여 페이지의 VA를 프레임의 PA에 매핑합니다. */
 	if(pml4_get_page(thread_current()->pml4, page->va) == NULL){
-		if (!pml4_set_page (thread_current ()->pml4, page->va, frame->kva, page->writable)) {
+		if (!pml4_set_page (thread_current ()->pml4, page->va, frame->kva, true)) {
 			vm_dealloc_page (page);
 			return false;
 		}	
