@@ -50,19 +50,20 @@ struct hash_elem {
  * name of the outer structure STRUCT and the member name MEMBER
  * of the hash element.  See the big comment at the top of the
  * file for an example. */
-
 /* 해시 요소 HASH_ELEM의 포인터를 HASH_ELEM이 포함된 구조체의 포인터로 변환합니다.
    외부 구조체 STRUCT의 이름과 해시 요소의 멤버 이름 MEMBER를 제공하십시오.
    파일 상단의 큰 주석을 참조하면 예제가 있습니다. 
+   hash_elem 구조체의 포인터인 elem 구조체를 포함한 구조체의 포인터를 반환한다.
 */
 #define hash_entry(HASH_ELEM, STRUCT, MEMBER)                   \
 	((STRUCT *) ((uint8_t *) &(HASH_ELEM)->list_elem        \
 		- offsetof (STRUCT, MEMBER.list_elem)))
 
 /* Computes and returns the hash value for hash element E, given
- * auxiliary data AUX. */
-/* 보조 데이터 AUX가 주어진 해시 요소 E의 해시 값을 계산하고 반환합니다. 
-*/
+ * auxiliary data AUX. 
+  요소의 데이터를 64bit unsigned int로 해싱한 값을 리턴합니다
+  보조 데이터 AUX가 주어진 해시 요소 E의 해시 값을 계산하고 반환합니다. 
+ */
 typedef uint64_t hash_hash_func (const struct hash_elem *e, void *aux);
 
 /* Compares the value of two hash elements A and B, given

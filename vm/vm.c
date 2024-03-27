@@ -77,6 +77,16 @@ err:
 	return false;
 }
 
+struct page * page_lookup(const void *address)
+{
+	struct page p;
+	struct hash_elem *e;
+
+	p.addr = address;
+	//e = hash_find(&pages, &p.hash_elem);
+	return e != NULL ? hash_entry(e, struct page, hash_elem) : NULL;
+}
+
 /* Find VA from spt and return page. On error, return NULL. */
 /* spt로부터 VA를 찾고 페이지를 반환합니다. 에러인 경우 NULL을 반환합니다. */
 struct page *
@@ -216,6 +226,8 @@ vm_do_claim_page (struct page *page) {
 /* 새 보조 페이지 테이블을 초기화합니다. */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	struct hash pages;
+	hash_init(&pages, hash_hash_func, hash_less_func, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
