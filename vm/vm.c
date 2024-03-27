@@ -4,6 +4,7 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include "lib/kernel/hash.h"
+#include "threads/vaddr.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes.
@@ -78,24 +79,18 @@ err:
 	return false;
 }
 
-struct page * page_lookup(const void *address)
-{
-	struct page p;
-	struct hash_elem *e;
-
-	p.addr = address;
-	//e = hash_find(&pages, &p.hash_elem);
-	return e != NULL ? hash_entry(e, struct page, hash_elem) : NULL;
-}
-
 /* Find VA from spt and return page. On error, return NULL. */
 /* spt로부터 VA를 찾고 페이지를 반환합니다. 에러인 경우 NULL을 반환합니다. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
+	struct page *page;
+	struct hash_elem *e;
 	/* 할일: 이 함수를 채워주세요. */
-
-	return page;
+	page = pg_round_down(va);
+	e = hash_find(&spt->hash_table, &page->hash_elem);
+	if (e != NULL)
+		return hash_entry(e, struct page, hash_elem);
+	return NULL;
 }
 
 /* Insert PAGE into spt with validation. */
