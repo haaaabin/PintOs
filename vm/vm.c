@@ -216,6 +216,12 @@ bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
 	/* 할일: 이 함수를 채워주세요. */
+	page = malloc(sizeof(struct page));
+	if(page == NULL){
+		return false;
+	}
+
+	page->va = pg_round_down(va);
 
 	return vm_do_claim_page (page);
 }
