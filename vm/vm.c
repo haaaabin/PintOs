@@ -5,6 +5,8 @@
 #include "vm/inspect.h"
 #include "lib/kernel/hash.h"
 #include "threads/vaddr.h"
+#include "threads/vaddr.h"
+#include "threads/mmu.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes.
@@ -87,7 +89,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct hash_elem *e;
 
 	/* 할일: 이 함수를 채워주세요. */
-	page->addr = pg_round_down(va);
+	page->va = pg_round_down(va);
 	e = hash_find(&spt->hash_table, &page->hash_elem);
 	
 	if(e != NULL)
@@ -99,11 +101,16 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 /* Insert PAGE into spt with validation. */
 /* 페이지를 유효성 검사를 거쳐 spt에 삽입합니다. */
 bool
-spt_insert_page (struct supplemental_page_table *spt UNUSED,
-		struct page *page UNUSED) {
+spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *page UNUSED) {
 	int succ = false;
-	/* 할일: 이 함수를 채워주세요. */
 
+	/* 할일: 이 함수를 채워주세요. */
+	if(is_user_vaddr(page->va)){
+		if(spt_find_page(spt, page->va) == NULL){
+			hash_insert(&spt->hash_table, &page->hash_elem);
+			succ = true;
+		}
+	}
 	return succ;
 }
 
@@ -151,9 +158,16 @@ static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
 	/* 할일: 이 함수를 채워주세요. */
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
+	if(frame == NULL){
+		frame = vm_evict_frame();
+		PANIC("todo");
+	}
+	frame->page = NULL;
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+
 	return frame;
 }
 
@@ -217,7 +231,12 @@ vm_do_claim_page (struct page *page) {
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	/* 할 일: 페이지 테이블 항목을 삽입하여 페이지의 VA를 프레임의 PA에 매핑합니다. */
-
+	if(pml4_get_page(thread_current()->pml4, page->va) == NULL){
+		if (!pml4_set_page (thread_current ()->pml4, page->va, frame->kva, page->writable)) {
+			vm_dealloc_page (page);
+			return false;
+		}	
+	}
 	return swap_in (page, frame->kva);
 }
 
