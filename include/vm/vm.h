@@ -116,7 +116,7 @@ struct page_operations {
  * 이 구조에 대해 특정 설계를 따르도록 강요하고 싶지 않습니다.
  * 모든 설계는 여러분의 몫입니다. */
 struct supplemental_page_table {
-	struct hash hash;
+	struct hash hash_table;
 };
 
 #include "threads/thread.h"
