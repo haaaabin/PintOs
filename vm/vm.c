@@ -6,6 +6,7 @@
 #include "lib/kernel/hash.h"
 #include "threads/vaddr.h"
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes.
@@ -230,7 +231,12 @@ vm_do_claim_page (struct page *page) {
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	/* 할 일: 페이지 테이블 항목을 삽입하여 페이지의 VA를 프레임의 PA에 매핑합니다. */
-
+	if(pml4_get_page(thread_current()->pml4, page->va) == NULL){
+		if (!pml4_set_page (thread_current ()->pml4, page->va, frame->kva, page->writable)) {
+			vm_dealloc_page (page);
+			return false;
+		}	
+	}
 	return swap_in (page, frame->kva);
 }
 
