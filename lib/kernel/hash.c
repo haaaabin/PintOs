@@ -6,9 +6,11 @@
    See hash.h for basic information. */
 
 
-#include "hash.h"
+#include "lib/kernel/hash.h"
 #include "../debug.h"
 #include "threads/malloc.h"
+#include <stdint.h>
+#include "vm/vm.h"
 
 #define list_elem_to_hash_elem(LIST_ELEM)                       \
 	list_entry(LIST_ELEM, struct hash_elem, list_elem)
@@ -19,6 +21,24 @@ static struct hash_elem *find_elem (struct hash *, struct list *,
 static void insert_elem (struct hash *, struct list *, struct hash_elem *);
 static void remove_elem (struct hash *, struct hash_elem *);
 static void rehash (struct hash *);
+
+/* Returns a hash value for page p. 
+   페이지 p의 해시값을 반환한다. */
+uint64_t page_hash (const struct hash_elem *e, void *aux)
+{
+	const struct page *p = hash_entry(e, struct page, hash_elem);
+	return hash_bytes(&p->addr, sizeof p->addr);
+}
+
+/* Returns true if page a precedes page b. 
+   페이지 a가 페이지 b보다 앞서는 경우 true를 반환한다.*/
+bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux)
+{
+	const struct page *pa = hash_entry(a, struct page, hash_elem);
+	const struct page *pb = hash_entry(b, struct page, hash_elem);
+
+	return pa->addr < pb->addr;
+}
 
 /* Initializes hash table H to compute hash values using HASH and
    compare hash elements using LESS, given auxiliary data AUX. */
@@ -405,29 +425,6 @@ hash_string (const char *s_) {
 uint64_t
 hash_int (int i) {
 	return hash_bytes (&i, sizeof i);
-}
-
-/* Returns a hash value for page p. 
-   페이지 p의 해시값을 반환한다. */
-uint64_t hash_hash_func (const struct hash_elem *e, void *aux)
-{
-	const struct page *p = hash_entry(e, struct page, hash_elem);
-	return hash_bytes(&p->addr, sizeof p->addr);
-}
-
-/* Returns true if page a precedes page b. 
-   페이지 a가 페이지 b보다 앞서는 경우 true를 반환한다.*/
-bool hash_less_func (const struct hash_elem *a, const struct hash_elem *b, void *aux)
-{
-	const struct page *pa = hash_entry(a, struct page, hash_elem);
-	const struct page *pb = hash_entry(b, struct page, hash_elem);
-
-	return pa->addr < pb->addr;
-}
-
-void hash_action_func (struct hash_elem *e, void *aux)
-{
-	
 }
 
 
