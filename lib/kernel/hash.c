@@ -27,7 +27,7 @@ static void rehash (struct hash *);
 uint64_t page_hash (const struct hash_elem *e, void *aux)
 {
 	const struct page *p = hash_entry(e, struct page, hash_elem);
-	return hash_bytes(&p->addr, sizeof p->addr);
+	return hash_bytes(&p->va, sizeof p->va);
 }
 
 /* Returns true if page a precedes page b. 
@@ -37,7 +37,7 @@ bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux)
 	const struct page *pa = hash_entry(a, struct page, hash_elem);
 	const struct page *pb = hash_entry(b, struct page, hash_elem);
 
-	return pa->addr < pb->addr;
+	return pa->va < pb->va;
 }
 
 /* Initializes hash table H to compute hash values using HASH and

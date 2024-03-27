@@ -61,7 +61,6 @@ struct page {
 
 	/* Your implementation */
 	struct hash_elem hash_elem;		/*Hash table element*/
-	void *addr;		/* Virtual address */
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union 

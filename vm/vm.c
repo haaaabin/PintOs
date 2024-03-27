@@ -87,7 +87,7 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct hash_elem *e;
 
 	/* 할일: 이 함수를 채워주세요. */
-	page->addr = pg_round_down(va);
+	page->va = pg_round_down(va);
 	e = hash_find(&spt->hash_table, &page->hash_elem);
 	
 	if(e != NULL)
@@ -103,7 +103,13 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
 	/* 할일: 이 함수를 채워주세요. */
-
+	
+	if(is_user_vaddr(page->va)){
+		if(spt_find_page(spt,page->va)==NULL){
+			hash_insert(&spt->hash_table,&page->hash_elem);
+			succ = true;
+		}
+	}
 	return succ;
 }
 
@@ -159,7 +165,7 @@ vm_get_frame (void) {
 
 /* 스택을 확장합니다. */
 static void
-vm_stack_growth (void *addr UNUSED) {
+vm_stack_growth (void *va UNUSED) {
 }
 
 /* Handle the fault on write_protected page */
@@ -171,7 +177,7 @@ vm_handle_wp (struct page *page UNUSED) {
 /* Return true on success */
 /* 성공 시 true를 반환합니다. */
 bool
-vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
+vm_try_handle_fault (struct intr_frame *f UNUSED, void *va UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
 	struct page *page = NULL;
