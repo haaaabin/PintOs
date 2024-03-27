@@ -158,8 +158,18 @@ vm_get_frame (void) {
 	struct frame *frame = NULL;
 	/* 할일: 이 함수를 채워주세요. */
 
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
+
+	if(frame == NULL){
+		// frame = vm_evict_frame();
+		PANIC("todo");
+	}	
+
+	frame->page = NULL;
+
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
+
 	return frame;
 }
 
