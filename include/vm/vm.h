@@ -44,6 +44,7 @@ struct page_operations;
 struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
+typedef bool (*page_initializer) (struct page *, enum vm_type, void *kva);
 
 /* The representation of "page".
  * This is kind of "parent class", which has four "child class"es, which are

@@ -78,8 +78,30 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		 * 할일: uninit_new를 호출한 후에 필드를 수정해야 합니다. 
 		 */
 
+		struct page *page = malloc(sizeof(struct page));
+		if(page == NULL){
+			return NULL;
+		}
+
+		page_initializer new_initializer = NULL;
+		switch(VM_TYPE(type)){
+			case VM_ANON:
+				new_initializer = anon_initializer;
+				break;
+			case VM_FILE:
+				new_initializer = file_backed_initializer;
+				break;
+		}
+		if(new_initializer == NULL){
+			free(page);
+			return false;
+		}
+
+		uninit_new(page, upage, init, type, aux, new_initializer);
+
 		/* TODO: Insert the page into the spt. */
 		/* 할일: 페이지를 spt에 삽입합니다. */
+		return spt_insert_page(spt, page);
 	}
 err:
 	return false;
@@ -177,7 +199,8 @@ vm_get_frame (void) {
 
 	if(frame->kva == NULL){
 		free(frame);
-		return vm_evict_frame();
+		PANIC("todo");
+		//return vm_evict_frame();
 	}	
 
 	frame->page = NULL;
