@@ -658,6 +658,9 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	/* 1. 파일에서 세그먼트를 로드합니다.
+	   2. 주소 VA에서 첫 번째 페이지 오류가 발생하면 호출됩니다. 
+	   3. 이 함수를 호출할 때 VA를 사용할 수 있다.*/
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -674,6 +677,18 @@ lazy_load_segment (struct page *page, void *aux) {
  *
  * Return true if successful, false if a memory allocation error
  * or disk read error occurs. */
+
+/* FILE의 오프셋 OFS에서 시작하는 세그먼트를 주소 UPAGE에서 로드합니다.  
+   다음과 같이 총 READ_BYTES + ZERO_BYTES 바이트의 가상 메모리가 초기화됩니다 
+   
+   -UPAGE의 READ_BYTES 바이트는 오프셋 OFS에서 시작하는 FILE에서 읽어야 합니다.
+   
+   -UPAGE + READ_BYTES의 ZERO_BYTES 바이트는 0이 되어야 합니다.
+   
+   이 함수에 의해 초기화된 페이지는 WRITABLE이 참이면 사용자 프로세스에서 쓰기 가능해야 하고,
+   그렇지 않으면 읽기 전용이어아 합니다.
+   
+   성공하면 참을 반환하고, 메모리 할당 오류 또는 디스크 읽기 오류*/
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
@@ -685,10 +700,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
+		/* 이 페이지를 채우는 방법을 계산하세요.
+		   FILE에서 PAGE_READ_BYTES 바이트를 읽고
+		   최종 PAGE_ZERO_BYTES 바이트를 0으로 합니다. */
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
+		/* lazy_load_segment에 정보를 전달하도록 aux를 설정합니다.*/
 		void *aux = NULL;
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
