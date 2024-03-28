@@ -85,6 +85,7 @@ struct page {
 struct frame {
 	void *kva;	//프레임의 커널 가상 주소를 가리키는 포인터 -> 페이지 프레임이 실제로 메모리에서 어디에 위치하는지
 	struct page *page; //프레임이 참조하는 페이지를 가리키는 포인터 -> 해당 프레임이 어떤 페이지를 가리키는지
+	struct list_elem frame_elem; //frame 구조체의 list_elem
 };
 
 /* The function table for page operations.
@@ -139,5 +140,4 @@ bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 void vm_dealloc_page (struct page *page);
 bool vm_claim_page (void *va);
 enum vm_type page_get_type (struct page *page);
-struct page *page_lookup (const void *address);
 #endif  /* VM_VM_H */
