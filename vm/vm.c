@@ -8,6 +8,10 @@
 #include "threads/vaddr.h"
 #include "threads/mmu.h"
 
+//프레임 구조체를 관리하는 frame_table
+//-> 어떠한 함수에서는 이를 초기화시켜야 할 것.
+struct list frame_table;
+
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes.
  * 각 서브시스템의 초기화 코드를 호출하여 가상 메모리 서브시스템을 초기화합니다.
@@ -85,17 +89,25 @@ err:
 /* spt로부터 VA를 찾고 페이지를 반환합니다. 에러인 경우 NULL을 반환합니다. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
+	struct page *page = malloc(sizeof(struct page));
 	struct hash_elem *e;
+	if(page == NULL){
+		return NULL;
+	}
 
 	/* 할일: 이 함수를 채워주세요. */
 	page->va = pg_round_down(va);
 	e = hash_find(&spt->hash_table, &page->hash_elem);
 	
-	if(e != NULL)
-		return hash_entry(e, struct page, hash_elem);
-	else
+	if(e != NULL){
+		struct page *found_page =  hash_entry(e, struct page, hash_elem);
+		free(page);
+		return found_page;
+	}
+	else{
+		free(page);
 		return NULL;
+	}
 }	
 
 /* Insert PAGE into spt with validation. */
@@ -156,13 +168,16 @@ vm_evict_frame (void) {
 
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = NULL;
+	struct frame *frame = malloc(sizeof(struct frame));
+	if(frame == NULL){
+		PANIC("todo");
+	}
 	/* 할일: 이 함수를 채워주세요. */
 	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
 
-	if(frame == NULL){
-		// frame = vm_evict_frame();
-		PANIC("todo");
+	if(frame->kva == NULL){
+		free(frame);
+		return vm_evict_frame();
 	}	
 
 	frame->page = NULL;
@@ -210,12 +225,12 @@ vm_dealloc_page (struct page *page) {
 }
 
 /* Claim the page that allocate on VA. */
-/* 1. VA에 할당된 페이지를 차지합니다.? */
-/* 2. VA에서 할당하는 페이지를 청구하세요.?*/
+/* VA(페이지의 가상 메모리 주소)를 통해 페이지를 얻어온다. */
 bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
 	/* 할일: 이 함수를 채워주세요. */
+	/* 물리 프레임과 연결을 할 페이지를 SPT를 통해서 찾아준다.*/
 	page = spt_find_page(&thread_current()->spt, va);
 
 	if(page == NULL)
@@ -224,7 +239,10 @@ vm_claim_page (void *va UNUSED) {
 }
 
 /* Claim the PAGE and set up the mmu. */
-/* 페이지를 청구하고 mmu를 설정합니다. */
+/* 페이지를 청구하고 mmu를 설정합니다. 
+   실질적으로 frame과 인자로 받은 page를 연결해주는 역할 수행. 
+   -> 해당 페이지가 이미 어떠한 물리 주소(kva)와 미리 연결이 되어 있는지 확인해야 한다.
+   -> 이후 미리 연결된 kva가 없을 경우, 해당 va를 kva에 set해준다. */
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
@@ -242,6 +260,7 @@ vm_do_claim_page (struct page *page) {
 			return false;
 		}	
 	}
+	/* 해당 페이지를 물리 메모리에 올려준다.*/
 	return swap_in (page, frame->kva);
 }
 
