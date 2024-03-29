@@ -675,6 +675,7 @@ lazy_load_segment (struct page *page, void *aux) {
 		return false;
 	}
 	memset (kpage + page_read_bytes, 0, page_zero_bytes);
+	return true;
 	/* Add the page to the process's address space. */
 }
 
@@ -711,8 +712,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		/* lazy_load_segment에 정보를 전달하도록 aux를 설정합니다.*/
-		void *aux = NULL;
-		**aux = {file, page_read_bytes, page_zero_bytes};
+		// void *aux = NULL;
+		void **aux = { file, page_read_bytes, page_zero_bytes };
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
 			return false;
@@ -736,7 +737,9 @@ setup_stack (struct intr_frame *if_) {
 	 * 성공하면 그에 따라 rsp를 설정한다.
 	 * 페이지가 스택임을 표시해야 한다.
 	 */
-
+	success = vm_alloc_page (VM_ANON | VM_MARKER_0, stack_bottom, true);
+	if (success)
+		if_->rsp = USER_STACK;
 	return success;
 }
 #endif /* VM */
