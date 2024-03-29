@@ -661,10 +661,15 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* 1. 파일에서 세그먼트를 로드합니다.
 	   2. 주소 VA에서 첫 번째 페이지 오류가 발생하면 호출됩니다. 
 	   3. 이 함수를 호출할 때 VA를 사용할 수 있다.*/
+	printf("lazy_load_segment \n");
 
-	struct file * file = ((void **)aux)[0];
-	size_t page_read_bytes = ((size_t **)aux)[1];
-	size_t page_zero_bytes = ((size_t **)aux)[2];
+	void **aux_ = (void **)aux;
+	struct file *file = ((struct file **)aux_)[0];
+	size_t *page_read_bytes = ((size_t *)aux_)[1];
+	size_t *page_zero_bytes = ((size_t *)aux_)[2];
+	off_t *ofs = ((off_t *)aux_)[3];
+
+	file_seek (file, *ofs);
 
 	/* Get a page of memory. */
 	uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -672,12 +677,13 @@ lazy_load_segment (struct page *page, void *aux) {
 		return false;
 
 	/* Load this page. */
-	if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes) {
+	if (file_read (file, kpage, *page_read_bytes) != (int) *page_read_bytes) {
 		palloc_free_page (kpage);
 		return false;
 	}
-	memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
+	memset (kpage + *page_read_bytes, 0, *page_zero_bytes);
+	// file_seek (file, *ofs);
 	return true;
 }
 
@@ -713,6 +719,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
 	ASSERT (pg_ofs (upage) == 0);
 	ASSERT (ofs % PGSIZE == 0);
+	
+	printf("load_segment \n");
 
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
@@ -726,8 +734,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		/* lazy_load_segment에 정보를 전달하도록 aux를 설정합니다.*/
-		void *aux = NULL;
-		aux = (file, page_read_bytes, page_zero_bytes);
+		void **aux = (file, &page_read_bytes, &page_zero_bytes, &ofs);
+
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
 			return false;
@@ -736,6 +744,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
+		ofs += page_read_bytes;
 	}
 	return true;
 }
@@ -746,12 +755,20 @@ static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
+	printf("setup_stack \n");
 
 	/* 스택을 stack_bottom에 매핑하고 즉시 페이지를 요구한다.
 	 * 성공하면 그에 따라 rsp를 설정한다.
 	 * 페이지가 스택임을 표시해야 한다.
 	 */
 
+	if(vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, true)){
+		success = vm_claim_page(stack_bottom);
+		if(success){
+			if_->rsp = USER_STACK;
+		}
+	}
+	
 	return success;
 }
 #endif /* VM */

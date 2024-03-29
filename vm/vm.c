@@ -77,12 +77,13 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		 * 할일: uninit_new를 호출하여 "uninit" 페이지 구조체를 만듭니다.
 		 * 할일: uninit_new를 호출한 후에 필드를 수정해야 합니다. 
 		 */
-
-		struct page *page = malloc(sizeof(struct page));
+		
+		struct page *page = (struct page *)malloc(sizeof(struct page));
 		if(page == NULL){
 			return NULL;
 		}
 
+		typedef bool (*page_initializer) (struct page *, enum vm_type, void *kva);
 		page_initializer new_initializer = NULL;
 		switch(VM_TYPE(type)){
 			case VM_ANON:
@@ -92,13 +93,10 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 				new_initializer = file_backed_initializer;
 				break;
 		}
-		if(new_initializer == NULL){
-			free(page);
-			return false;
-		}
 
 		uninit_new(page, upage, init, type, aux, new_initializer);
 
+		page->writable =writable;
 		/* TODO: Insert the page into the spt. */
 		/* 할일: 페이지를 spt에 삽입합니다. */
 		return spt_insert_page(spt, page);
@@ -233,8 +231,25 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Your code goes here */
 	/* 할일: 페이지 폴트를 검증하세요. */
 	/* 할일: 여기에 코드를 작성하세요. */
+	printf("vm_try_handle_fault %p \n", addr);
 
-	return vm_do_claim_page (page);
+	if(addr == NULL || (is_kernel_vaddr(addr))){
+		return false;
+	}
+
+	page = spt_find_page(spt,addr);
+	if(page == NULL){
+		return false;
+	}
+	
+	if(not_present){
+		bool success = vm_do_claim_page(page);
+		if(!success){
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /* Free the page.
@@ -269,6 +284,9 @@ vm_claim_page (void *va UNUSED) {
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
+	if(frame == NULL){
+		return false;
+	}
 
 	/* Set links */
 	/* 링크 설정 */
