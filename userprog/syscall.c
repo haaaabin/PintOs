@@ -15,6 +15,7 @@
 #include "include/lib/user/syscall.h"
 #include "devices/input.h"
 #include "include/threads/palloc.h"
+#include "vm/vm.h"
 
 
 void syscall_entry (void);
@@ -372,7 +373,12 @@ void check_address(uintptr_t addr) {
 	if (!is_user_vaddr(addr)) {
 		exit(-1);
 	}
-	if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
+	
+	// if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
+	// 	exit(-1);
+	// }
+
+	if(spt_find_page(&thread_current()->spt, addr) == NULL){
 		exit(-1);
 	}
 
