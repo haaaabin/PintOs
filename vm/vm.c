@@ -315,9 +315,46 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 
 /* Copy supplemental page table from src to dst */
 /* src에서 dst로 보조 페이지 테이블을 복사합니다. */
+// dst <- src가 직접적으로 이루어지지 않는 이유?
+// 페이지의 모든 정보가 아니라 페이지에서 메타 정보만 뽑아서 로딩은 나중에 한다?
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	struct hash_iterator i;
+	hash_first (&i, &src->hash_table);
+   	while (hash_next (&i))
+   	{
+		struct page *src_page = hash_entry (hash_cur (&i), struct page, hash_elem);
+
+		enum vm_type vm_type = src_page->operations->type;
+		void *va = src_page->va;
+		bool writable = src_page->writable;
+
+		/* 1) type이 uninit이면 */
+        if (vm_type == VM_UNINIT)
+        { // uninit page 생성 & 초기화
+            vm_initializer *init = src_page->uninit.init;
+            void *aux = src_page->uninit.aux;
+            vm_alloc_page_with_initializer(VM_ANON, va, writable, init, aux);
+            continue;
+        }
+
+        /* 2) type이 uninit이 아니면 */
+        if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
+            // init이랑 aux는 Lazy Loading에 필요함
+            // 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
+            return false;
+
+        // vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
+        if (!vm_claim_page(va))
+            return false;
+
+        // 매핑된 프레임에 내용 로딩
+        struct page *dst_page = spt_find_page(dst, va);
+        memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+    }
+    return true;
+	
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -327,6 +364,12 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	/* 할일: 스레드에 의해 보유된 모든 보조 페이지 테이블을 파괴하고
-	 * 할일: 변경된 모든 내용을 저장소에 기록하세요. */
-	
+	 * 할일: 변경된 모든 내용을 저장소에 기록하세요. */                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+	hash_clear(&spt->hash_table, page_destroy);
+	//hash_destroy(&spt->hash_table, page_destroy);
+}
+
+void page_destroy(struct hash_elem *e, void *aux UNUSED){
+	struct page *page = hash_entry(e, struct page, hash_elem);
+	vm_dealloc_page(page);
 }
