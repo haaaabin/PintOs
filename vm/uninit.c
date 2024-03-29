@@ -43,7 +43,7 @@ uninit_new (struct page *page, void *va, vm_initializer *init,
 			.init = init,
 			.type = type,
 			.aux = aux,
-			.page_initializer = initializer,
+			.page_initializer = initializer,	//페이지 초기화를 수행할 함수 포인터 설정
 		}
 	};
 }
