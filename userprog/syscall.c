@@ -80,6 +80,7 @@ void syscall_handler (struct intr_frame *f) {
 	frame = f;
 	
 	uint64_t syscall_num = f->R.rax;
+	thread_current()->stack_rsp = f->rsp;
 	switch (syscall_num)
 	{
 	case SYS_HALT:
@@ -282,24 +283,29 @@ int filesize(int fd) {
  */
 int read(int fd, void *buffer, unsigned size) {
 	check_address(buffer);
-	struct file *_file = get_file_from_fd(fd);
-	if (_file == NULL) {
-		return -1;
-	}
 	int byte = 0;
 	char *_buffer;
+	
 	if (fd == STDIN_FILENO) {
 		_buffer = buffer;
 		while (byte < size) {
 			_buffer[byte++] = input_getc();
 		}
-		lock_acquire(&filesys_lock);
-		int byte_ = file_read(_file, buffer, size);
-		lock_release(&filesys_lock);
-		return byte_;
 	}
-
-	return file_read(_file, buffer, size);
+	else{
+		struct file *_file = get_file_from_fd(fd);
+		if (_file == NULL) {
+			return -1;
+		}
+		struct page * _page = spt_find_page(&thread_current()->spt, buffer);
+		if(_page && !_page->writable){
+			exit(-1);
+		}
+		lock_acquire(&filesys_lock);
+		byte = file_read(_file, buffer, size);
+		lock_release(&filesys_lock);
+	}
+	return byte;
 }
 
 /* write - fd로 열린 파일에 buffer에서 size 바이트를 쓴다.

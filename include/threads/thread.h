@@ -136,6 +136,10 @@ struct thread {
 	struct semaphore wait_sema; // wait semaphore
 	struct semaphore exit_sema; // exit semaphore
 	struct file *self_file; // self file
+
+	/* project 3 */
+	void *stack_rsp;
+	void *stack_bottom;
 };
 
 /* If false (default), use round-robin scheduler.

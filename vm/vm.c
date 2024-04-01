@@ -214,6 +214,9 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	vm_alloc_page(VM_ANON|VM_MARKER_0, pg_round_down(addr), true);
+	//thread_current()->stack_bottom -= PGSIZE;
+	thread_current()->stack_bottom = pg_round_down(addr);
 }
 
 /* Handle the fault on write_protected page */
@@ -225,38 +228,45 @@ vm_handle_wp (struct page *page UNUSED) {
 
 /* Return true on success */
 /* 성공 시 true를 반환합니다. */
-bool
-vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
-		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
-	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
-	struct page *page = NULL;
-	/* TODO: Validate the fault */
-	/* TODO: Your code goes here */
-	/* 할일: 페이지 폴트를 검증하세요. */
-	/* 할일: 여기에 코드를 작성하세요. */
+bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
+                         bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
+{
+    struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
+    struct page *page = NULL;
+    if (addr == NULL)
+        return false;
 
-	if(addr == NULL || (is_kernel_vaddr(addr))){
-		return false;
-	}
+    if (is_kernel_vaddr(addr))
+        return false;
 
-	page = spt_find_page(spt,addr);
-	if(page == NULL){
-		return false;
-	}
-	
-	// 접근한 메모리의 physical page가 존재하지 않은 경우
-	if(not_present){
-		bool success = vm_do_claim_page(page);
-		if(!success){
-			return false;
-		}
-	}
-	if(page->writable == false && write == true){
-		return vm_handle_wp(page);
-	}
-	
+	// true: addr에 매핑된 physical page가 존재하지 않는 경우에 해당한다.
+    // false: read only page에 writing 작업을 하려는 시도에 해당한다.
+    if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
+    {
+        /* TODO: Validate the fault */
+        // 페이지 폴트가 스택 확장에 대한 유효한 경우인지를 확인한다.
+        void *rsp = f->rsp; // user access인 경우 rsp는 유저 stack을 가리킨다.
+		void *stack_bottom = thread_current()->stack_bottom;
+        if (!user)            // kernel access인 경우 thread에서 rsp를 가져와야 한다.
+            rsp = thread_current()->stack_rsp;
 
-	return true;
+        // 스택 확장으로 처리할 수 있는 폴트인 경우, vm_stack_growth를 호출한다.
+		// 1. addr이 rsp보다 위에있으면 안되고,
+		// 2. stack_bottom보다 위에 있으면 안되고,
+		// 3. addr이 USER_STACK- (1<<20) 보다 .아래에 있으면 안된다.
+		// if (USER_STACK - (1 << 20) <= rsp - 8  && stack_bottom > addr && addr >= (USER_STACK - (1<<20)) && addr < rsp - 8 )
+		// 	vm_stack_growth(addr);
+        if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 <= addr && addr <= USER_STACK)
+            vm_stack_growth(addr);
+
+        page = spt_find_page(spt, addr);
+        if (page == NULL)
+            return false;
+        if (write == 1 && page->writable == 0) // write 불가능한 페이지에 write 요청한 경우
+            return false;
+        return vm_do_claim_page(page);
+    }
+    return false;
 }
 
 /* Free the page.
