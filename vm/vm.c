@@ -7,6 +7,7 @@
 #include "threads/vaddr.h"
 #include "threads/vaddr.h"
 #include "threads/mmu.h"
+#include "threads/thread.h"
 
 //프레임 구조체를 관리하는 frame_table
 //-> 어떠한 함수에서는 이를 초기화시켜야 할 것.
@@ -208,6 +209,8 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+
+	vm_alloc_page(VM_ANON | VM_MARKER_0, pg_round_down(addr), true);
 }
 
 /* Handle the fault on write_protected page */
@@ -218,6 +221,21 @@ vm_handle_wp (struct page *page UNUSED) {
 
 /* Return true on success */
 /* 성공 시 true를 반환합니다. */
+/*
+ 'f' 
+ 	- page fault 예외가 발생할 때 실행되던 context 정보가 담겨있는 interrupt frame이다.
+ 'addr' 
+ 	- page fault 예외가 발생할 때 접근한 virtual address이다. 즉, 이 virtual address에 접근했기 때문에 page fault가 발생한 것이다.
+ 'not_present'
+	- true : addr에 매핑된 physical page가 존재하지 않는 경우에 해당한다.
+	- false : read only page에 writing 작업을 하려는 시도에 해당한다.
+ 'write'
+	- true : addr에 writing 작업을 시도한 경우에 해당한다.
+	- false : addr에 read 작업을 시도한 경우에 해당한다.
+ 'user'
+	- true : user에 의한 접근에 해당한다.
+	- false : kernel에 의한 접근에 해당한다. 
+*/
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
@@ -225,14 +243,32 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
-
+	
 	if(addr == NULL || (is_kernel_vaddr(addr))){
 		return false;
 	}
 
 	if(not_present){
+		void *rsp_stack = f->rsp;
+		
+		if(!user){	//kernel access인 경우 thread에서 rsp를 가져와야 한다.
+			rsp_stack = thread_current()->rsp_stack;
+		}
+
+		if(USER_STACK - (1<<20) <= rsp_stack && rsp_stack <= addr && addr<= USER_STACK){
+			vm_stack_growth(addr);
+		}
+		if(USER_STACK - (1<<20) <= rsp_stack - 8 && rsp_stack -8 <= addr && addr <= USER_STACK){
+			vm_stack_growth(addr);
+		}
+
 		page = spt_find_page(spt,addr);
 		if(page == NULL){
+			return false;
+		}
+
+		//write 불가능한 페이지에 write 요청한 경우
+		if(write == 1 && page->writable == 0){
 			return false;
 		}
 			
