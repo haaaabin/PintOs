@@ -40,12 +40,11 @@ bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux)
 	return pa->va < pb->va;
 }
 
-void page_destroy(struct hash_elem *e, void *aux)
-{
+void page_destroy(struct hash_elem *e, void *aux UNUSED){
 	struct page *page = hash_entry(e, struct page, hash_elem);
-	destroy(page);
-	free(page);
+	vm_dealloc_page(page);
 }
+
 /* Initializes hash table H to compute hash values using HASH and
    compare hash elements using LESS, given auxiliary data AUX. */
 /* 해시 테이블 H를 초기화하여 보조 데이터 AUX를 사용하여 해시 값을 계산하고

@@ -330,6 +330,8 @@ vm_do_claim_page(struct page *page)
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	/* 페이지 테이블 항목을 삽입하여 페이지의 VA를 프레임의 PA에 매핑합니다. */
+	/*pml4_get_page는 가상주소를 넣어 해당 물리주소를 찾고 그에 해당하는 
+	커널 가상 주소를 반환한다.*/
 	if(pml4_get_page(thread_current()->pml4, page->va) == NULL){
 		if (!pml4_set_page (thread_current ()->pml4, page->va, frame->kva, page->writable)) {
 			vm_dealloc_page (page);
@@ -405,9 +407,4 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 
 	hash_clear(&spt->hash_table, page_destroy);
 
-}
-
-void page_destroy(struct hash_elem *e, void *aux UNUSED){
-	struct page *page = hash_entry(e, struct page, hash_elem);
-	vm_dealloc_page(page);
 }
