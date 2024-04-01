@@ -256,8 +256,8 @@ int open(const char *file) {
 		lock_release(&filesys_lock);
 		return -1;
 	}
-
 	int fd = add_file_to_fdt(file_open);
+	// printf("open %d \n", fd);
 	if (fd == -1)
 		file_close(file_open);
 	lock_release(&filesys_lock);
@@ -285,7 +285,6 @@ int read(int fd, void *buffer, unsigned size) {
 	check_address(buffer);
 	int byte = 0;
 	char *_buffer;
-	
 	if (fd == STDIN_FILENO) {
 		_buffer = buffer;
 		while (byte < size) {
@@ -383,11 +382,10 @@ void check_address(uintptr_t addr) {
 	// if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
 	// 	exit(-1);
 	// }
-	if(spt_find_page(&thread_current()->spt, (void *)addr) == NULL) {
-
-		exit(-1);
-	}
-
+	// if(spt_find_page(&thread_current()->spt, (void *)addr) == NULL) {
+	// 	exit(-1);
+	// }
+	
 	if (KERN_BASE < addr || addr < 0) {
 		exit(-1);
 	}
@@ -395,6 +393,7 @@ void check_address(uintptr_t addr) {
 	if (KERN_BASE < addr + 8 || addr + 8 < 0) {
 		exit(-1);
 	}
+
 }
 
 /* add_file_to_fdt - file을 fdt에 추가하고 fd를 반환한다.
