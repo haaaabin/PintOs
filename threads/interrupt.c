@@ -119,6 +119,9 @@ intr_get_level (void) {
 	   value off the stack into `flags'.  See [IA32-v2b] "PUSHF"
 	   and "POP" and [IA32-v3a] 5.8.1 "Masking Maskable Hardware
 	   Interrupts". */
+	   //플래그 레지스터를 프로세서 스택에 푸시한 다음, 스택에서 값을 'flags'로 팝합니다.
+	   // [IA32-v2b] "PUSHF" 및 "POP" 및 [IA32-v3a] 5.8.1 "Masking Maskable Hardware Interrupts" 참조
+	   
 	asm volatile ("pushfq; popq %0" : "=g" (flags));
 
 	return flags & FLAG_IF ? INTR_ON : INTR_OFF;
