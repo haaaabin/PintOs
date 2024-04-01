@@ -254,8 +254,12 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 		// 1. addr이 rsp보다 위에있으면 안되고,
 		// 2. stack_bottom보다 위에 있으면 안되고,
 		// 3. addr이 USER_STACK- (1<<20) 보다 .아래에 있으면 안된다.
-		// if (USER_STACK - (1 << 20) <= rsp - 8  && stack_bottom > addr && addr >= (USER_STACK - (1<<20)) && addr < rsp - 8 )
+
+		// if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK)
+        //     vm_stack_growth(addr);
+		// else if (USER_STACK - (1 << 20) <= rsp  &&  rsp <= stack_bottom && stack_bottom <= USER_STACK)
 		// 	vm_stack_growth(addr);
+
         if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 <= addr && addr <= USER_STACK)
             vm_stack_growth(addr);
 
