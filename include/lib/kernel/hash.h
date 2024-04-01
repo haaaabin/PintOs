@@ -93,6 +93,9 @@ struct hash {
 
 /* A hash table iterator. */
 /* 해시 테이블 반복자 */
+/* 해시 테이블을 순회하는데 사용되는 반복자이다. 해시 테이블은 일반적으로 버킷으로 구성되어 있으며,
+   각 버킷은 하나 이상의 요소를 포함하는 연결 리스트이다.
+   'hash_iterator' 는 이러한 버킷과 연결 리스트를 순회하면서 각 요소에 접근할 수 있도록 도와준다. */
 struct hash_iterator {
 	struct hash *hash;          /* The hash table. *///해시 테이블
 	struct list *bucket;        /* Current bucket. *///현재 버킷
@@ -132,4 +135,5 @@ uint64_t hash_int (int);
 
 uint64_t page_hash (const struct hash_elem *e, void *aux);
 bool page_less (const struct hash_elem *a, const struct hash_elem *b, void *aux);
+void page_destroy(struct hash_elem *e, void *aux);
 #endif /* lib/kernel/hash.h */
