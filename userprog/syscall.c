@@ -382,9 +382,9 @@ void check_address(uintptr_t addr) {
 	// if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
 	// 	exit(-1);
 	// }
-	if(spt_find_page(&thread_current()->spt, (void *)addr) == NULL) {
-		exit(-1);
-	}
+	// if(spt_find_page(&thread_current()->spt, (void *)addr) == NULL) {
+	// 	exit(-1);
+	// }
 
 	if (KERN_BASE < addr || addr < 0) {
 		exit(-1);
