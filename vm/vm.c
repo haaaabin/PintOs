@@ -212,11 +212,7 @@ vm_get_frame (void) {
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth (void *addr UNUSED) {
-
 	vm_alloc_page(VM_ANON|VM_MARKER_0, pg_round_down(addr), true);
-	//thread_current()->stack_bottom -= PGSIZE;
-	thread_current()->stack_bottom = pg_round_down(addr);
-
 }
 
 /* Handle the fault on write_protected page */
@@ -228,7 +224,21 @@ vm_handle_wp (struct page *page UNUSED) {
 
 /* Return true on success */
 /* 성공 시 true를 반환합니다. */
-
+/*
+ 'f' 
+ 	- page fault 예외가 발생할 때 실행되던 context 정보가 담겨있는 interrupt frame이다.
+ 'addr' 
+ 	- page fault 예외가 발생할 때 접근한 virtual address이다. 즉, 이 virtual address에 접근했기 때문에 page fault가 발생한 것이다.
+ 'not_present'
+	- true : addr에 매핑된 physical page가 존재하지 않는 경우에 해당한다.
+	- false : read only page에 writing 작업을 하려는 시도에 해당한다.
+ 'write'
+	- true : addr에 writing 작업을 시도한 경우에 해당한다.
+	- false : addr에 read 작업을 시도한 경우에 해당한다.
+ 'user'
+	- true : user에 의한 접근에 해당한다.
+	- false : kernel에 의한 접근에 해당한다. 
+*/
 bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
                          bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
 {
@@ -246,8 +256,8 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
     {
         /* TODO: Validate the fault */
         // 페이지 폴트가 스택 확장에 대한 유효한 경우인지를 확인한다.
+
         void *rsp = f->rsp; // user access인 경우 rsp는 유저 stack을 가리킨다.
-		void *stack_bottom = thread_current()->stack_bottom;
         if (!user)            // kernel access인 경우 thread에서 rsp를 가져와야 한다.
             rsp = thread_current()->stack_rsp;
 
@@ -381,15 +391,8 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 
-
 	/* 스레드에 의해 보유된 모든 보조 페이지 테이블을 파괴하고
 	 * 변경된 모든 내용을 저장소에 기록하세요. */
 
 	hash_clear(&spt->hash_table, page_destroy);
-
-}
-
-void page_destroy(struct hash_elem *e, void *aux UNUSED){
-	struct page *page = hash_entry(e, struct page, hash_elem);
-	vm_dealloc_page(page);
 }

@@ -143,7 +143,7 @@ struct thread {
 
 	/* project 3 */
 	void *stack_rsp;
-	void *stack_bottom;
+	//void *stack_bottom;
 };
 
 /* If false (default), use round-robin scheduler.
