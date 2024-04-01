@@ -15,6 +15,7 @@
 #include "include/lib/user/syscall.h"
 #include "devices/input.h"
 #include "include/threads/palloc.h"
+#include "vm/vm.h"
 
 
 void syscall_entry (void);
@@ -79,6 +80,9 @@ void syscall_handler (struct intr_frame *f) {
 	frame = f;
 	
 	uint64_t syscall_num = f->R.rax;
+	#ifdef VM
+	thread_current()->rsp_stack = f->rsp;
+	#endif
 	switch (syscall_num)
 	{
 	case SYS_HALT:
@@ -372,7 +376,12 @@ void check_address(uintptr_t addr) {
 	if (!is_user_vaddr(addr)) {
 		exit(-1);
 	}
-	if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
+	
+	// if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
+	// 	exit(-1);
+	// }
+
+	if(spt_find_page(&thread_current()->spt, addr) == NULL){
 		exit(-1);
 	}
 
