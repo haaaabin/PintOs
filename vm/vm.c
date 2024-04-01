@@ -220,6 +220,7 @@ vm_stack_growth (void *addr UNUSED) {
 /* 쓰기 보호된 페이지에 대한 처리 */
 static bool
 vm_handle_wp (struct page *page UNUSED) {
+	return false;
 }
 
 /* Return true on success */
@@ -250,6 +251,10 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 			return false;
 		}
 	}
+	if(page->writable == false && write == true){
+		return vm_handle_wp(page);
+	}
+	
 
 	return true;
 }
