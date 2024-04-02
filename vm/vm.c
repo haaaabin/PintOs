@@ -392,8 +392,3 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	hash_clear(&spt->hash_table, page_destroy);
 
 }
-
-void page_destroy(struct hash_elem *e, void *aux UNUSED){
-	struct page *page = hash_entry(e, struct page, hash_elem);
-	vm_dealloc_page(page);
-}

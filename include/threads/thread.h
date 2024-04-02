@@ -112,8 +112,9 @@ struct thread {
 	int nice;
 	int recent_cpu;
 
+	/* project 3 */
 	/*For Stack Growth*/
-	void *rsp_stack;	//현재 쓰레드의 rsp 주소값을 담는 변수	
+	void *stack_rsp;	//현재 쓰레드의 rsp 주소값을 담는 변수	
 	void *stack_bottom;	//현재 쓰레드의 stack 영역의 끝 지점을 파악하기 위해 선언하는 변수
 
 #ifdef USERPROG
@@ -141,9 +142,6 @@ struct thread {
 	struct semaphore exit_sema; // exit semaphore
 	struct file *self_file; // self file
 
-	/* project 3 */
-	void *stack_rsp;
-	void *stack_bottom;
 };
 
 /* If false (default), use round-robin scheduler.
