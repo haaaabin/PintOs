@@ -292,6 +292,10 @@ int filesize(int fd) {
  * 파일을 읽을 수 없는 경우(파일 끝이 아닌 다른 조건으로 인해) -1을 반환한다.
  * fd 0은 input_getc()를 사용하여 키보드에서 읽는다. 
  */
+
+/**정적 변수로 buf2를 선언 했기 때문에 check_address안에서
+ * 당연히 NULL이 된다. 
+ * why -> 정적 변수는 데이터 영역에 저장하기 때문에 page가 없다.**/
 int read(int fd, void *buffer, unsigned size) {
 	check_address(buffer);
 	int byte = 0;
