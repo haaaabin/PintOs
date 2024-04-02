@@ -2,6 +2,10 @@
 /* file.c: memory baked file 객체 구현 (mmaped object).*/
 
 #include "vm/vm.h"
+#include "userprog/process.h"
+#include "threads/vaddr.h"
+#include "threads/mmu.h"
+#include "devices/disk.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -56,9 +60,63 @@ file_backed_destroy (struct page *page) {
 void *
 do_mmap (void *addr, size_t length, int writable,
 		struct file *file, off_t offset) {
+
+	struct file *_file = file_reopen(file);
+	if(_file == NULL)
+		return false;
+		
+	void *start_addr = addr;	//매핑 성공 시 파일이 매핑된 가상 주소 반환하는 데 사용
+	
+	size_t read_bytes = file_length(_file) < length ? file_length(_file) : length;
+	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+
+	ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+	ASSERT (pg_ofs (addr) == 0);
+	ASSERT (offset % PGSIZE == 0);
+
+	while (read_bytes > 0 || zero_bytes > 0){
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+		struct lazy_load_arg *lazy_load_arg = (struct lazy_load_arg *)malloc(sizeof(struct lazy_load_arg));
+		lazy_load_arg->file = file;
+		lazy_load_arg->ofs = offset;
+		lazy_load_arg->read_bytes = page_read_bytes;
+		lazy_load_arg->zero_bytes = page_zero_bytes;
+
+		if(!vm_alloc_page_with_initializer(VM_FILE, addr, writable, lazy_load_segment, lazy_load_arg))
+			return false;
+		
+		read_bytes -= page_read_bytes;
+		zero_bytes -= page_zero_bytes;
+		addr += PGSIZE;
+		offset += page_read_bytes;
+	}
+	return start_addr;
 }
 
 /* Do the munmap */
+/*연결된 물리프레임과의 연결을 끊어준다.*/
 void
 do_munmap (void *addr) {
+
+	while(true){
+		struct thread *t = thread_current();
+		struct page *find_page = spt_find_page(&t->spt, addr);
+		
+		if(find_page == NULL){
+			return NULL;
+		}
+
+		struct lazy_load_arg *page_aux = (struct lazy_load_arg *)find_page->uninit.aux;
+			
+		if(pml4_is_dirty(t->pml4, find_page->va)){			
+			file_write_at(page_aux->file, addr, page_aux->read_bytes, page_aux->ofs);
+			pml4_set_dirty(t->pml4, find_page->va, 0);
+		}
+		else{	
+			pml4_clear_page(t->pml4, find_page->va);
+			addr += PGSIZE;
+		}
+	}
 }

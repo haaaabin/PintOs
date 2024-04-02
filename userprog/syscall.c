@@ -17,9 +17,10 @@
 #include "include/threads/palloc.h"
 #include "vm/vm.h"
 
-
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+
+/* Project 2 */
 void halt(void);
 void exit(int status);
 pid_t fork(const char *thread_name);
@@ -37,6 +38,10 @@ void close(int fd);
 void check_address(uintptr_t addr);
 int add_file_to_fdt(struct file *file);
 struct file *get_file_from_fd(int fd);
+
+/* Project 3 */
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
+void munmap (void *addr);
 
 static struct intr_frame *frame;
 /* System call.
@@ -124,6 +129,12 @@ void syscall_handler (struct intr_frame *f) {
 		break;
 	case SYS_CLOSE:
 		close(f->R.rdi);
+		break;
+	case SYS_MMAP:
+		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+		break;
+	case SYS_MUNMAP:
+		munmap(f->R.rdi);
 		break;
 	default:
 		thread_exit();
@@ -256,8 +267,8 @@ int open(const char *file) {
 		lock_release(&filesys_lock);
 		return -1;
 	}
-
 	int fd = add_file_to_fdt(file_open);
+	// printf("open %d \n", fd);
 	if (fd == -1)
 		file_close(file_open);
 	lock_release(&filesys_lock);
@@ -285,7 +296,6 @@ int read(int fd, void *buffer, unsigned size) {
 	check_address(buffer);
 	int byte = 0;
 	char *_buffer;
-	
 	if (fd == STDIN_FILENO) {
 		_buffer = buffer;
 		while (byte < size) {
@@ -383,10 +393,9 @@ void check_address(uintptr_t addr) {
 	// if (pml4_get_page(thread_current()->pml4, (void *)addr) == NULL) {
 	// 	exit(-1);
 	// }
-	if(spt_find_page(&thread_current()->spt, (void *)addr) == NULL) {
-
-		exit(-1);
-	}
+	// if(spt_find_page(&thread_current()->spt, (void *)addr) == NULL) {
+	// 	exit(-1);
+	// }
 
 	if (KERN_BASE < addr || addr < 0) {
 		exit(-1);
@@ -395,6 +404,7 @@ void check_address(uintptr_t addr) {
 	if (KERN_BASE < addr + 8 || addr + 8 < 0) {
 		exit(-1);
 	}
+
 }
 
 /* add_file_to_fdt - file을 fdt에 추가하고 fd를 반환한다.
@@ -434,4 +444,33 @@ struct file *get_file_from_fd(int fd) {
 		return NULL;
 	else
 		return _fdt[fd];
+}
+
+/* fd로 열린 파일의 오프셋(offset) 바이트로부터 length 바이트 만큼을 프로세스의 가상 주소 공간의 주소 addr에 매핑한다.
+ */
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
+	
+	if(offset % PGSIZE != 0)
+		exit(-1);
+	if(addr == NULL || (uintptr_t)addr % PGSIZE != 0)
+		exit(-1);
+	if(!is_user_vaddr(addr) || !is_user_vaddr(addr + length))
+		exit(-1);
+	if(length <= 0 || length % PGSIZE != 0)
+		exit(-1);
+	if(spt_find_page(&thread_current()->spt, addr) != NULL)
+		exit(-1);	
+	struct file *_file = get_file_from_fd(fd);
+	if(_file == NULL)
+		exit(-1);
+	if(fd == STDIN_FILENO || fd == STDOUT_FILENO)
+		exit(-1);
+	if(file_length(_file) == 0 ||file_length(_file) < 0 )
+		exit(-1);
+
+	return do_mmap(addr, length, writable, _file, offset);
+}
+void munmap (void *addr){
+
+	do_munmap(addr);
 }
