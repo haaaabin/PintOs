@@ -78,7 +78,7 @@ do_mmap (void *addr, size_t length, int writable,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		struct lazy_load_arg *lazy_load_arg = (struct lazy_load_arg *)malloc(sizeof(struct lazy_load_arg));
-		lazy_load_arg->file = file;
+		lazy_load_arg->file = _file;
 		lazy_load_arg->ofs = offset;
 		lazy_load_arg->read_bytes = page_read_bytes;
 		lazy_load_arg->zero_bytes = page_zero_bytes;
