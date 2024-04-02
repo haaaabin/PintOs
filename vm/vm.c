@@ -82,7 +82,8 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		 */
 
 		struct page *page = (struct page *)malloc(sizeof(struct page));
-		if(page == NULL){
+		if (page == NULL)
+		{
 			return false;
 		}
 		page->va = upage;
@@ -96,12 +97,13 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 			new_initializer = file_backed_initializer;
 			break;
 		}
-		if(new_initializer == NULL){
+		if (new_initializer == NULL)
+		{
 			free(page);
 			return false;
 		}
 		uninit_new(page, upage, init, type, aux, new_initializer);
-		page->writable =writable;
+		page->writable = writable;
 
 		/* TODO: Insert the page into the spt. */
 		/* 페이지를 spt에 삽입합니다. */
@@ -228,62 +230,73 @@ vm_get_frame(void)
 static void
 vm_stack_growth(void *addr UNUSED)
 {
-
-	vm_alloc_page(VM_ANON|VM_MARKER_0, pg_round_down(addr), true);
-	//thread_current()->stack_bottom -= PGSIZE;
-	thread_current()->stack_bottom = pg_round_down(addr);
-
+	vm_alloc_page(VM_ANON | VM_MARKER_0, pg_round_down(addr), true);
 }
 
 /* Handle the fault on write_protected page */
 /* 쓰기 보호된 페이지에 대한 처리 */
 static bool
-vm_handle_wp (struct page *page UNUSED) {
+vm_handle_wp(struct page *page UNUSED)
+{
 	return false;
 }
 
 /* Return true on success */
 /* 성공 시 true를 반환합니다. */
-
+/*
+ 'f'
+	- page fault 예외가 발생할 때 실행되던 context 정보가 담겨있는 interrupt frame이다.
+ 'addr'
+	- page fault 예외가 발생할 때 접근한 virtual address이다. 즉, 이 virtual address에 접근했기 때문에 page fault가 발생한 것이다.
+ 'not_present'
+	- true : addr에 매핑된 physical page가 존재하지 않는 경우에 해당한다.
+	- false : read only page에 writing 작업을 하려는 시도에 해당한다.
+ 'write'
+	- true : addr에 writing 작업을 시도한 경우에 해당한다.
+	- false : addr에 read 작업을 시도한 경우에 해당한다.
+ 'user'
+	- true : user에 의한 접근에 해당한다.
+	- false : kernel에 의한 접근에 해당한다.
+*/
 bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
-                         bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
+						 bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
 {
-    struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-    struct page *page = NULL;
-    if (addr == NULL)
-        return false;
+	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
+	struct page *page = NULL;
+	if (addr == NULL)
+		return false;
 
-    if (is_kernel_vaddr(addr))
-        return false;
+	if (is_kernel_vaddr(addr))
+		return false;
 
 	// true: addr에 매핑된 physical page가 존재하지 않는 경우에 해당한다.
-    // false: read only page에 writing 작업을 하려는 시도에 해당한다.
-    if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
-    {
-        /* TODO: Validate the fault */
-        // 페이지 폴트가 스택 확장에 대한 유효한 경우인지를 확인한다.
-        void *rsp = f->rsp; // user access인 경우 rsp는 유저 stack을 가리킨다.
-		void *stack_bottom = thread_current()->stack_bottom;
-        if (!user)            // kernel access인 경우 thread에서 rsp를 가져와야 한다.
-            rsp = thread_current()->stack_rsp;
+	// false: read only page에 writing 작업을 하려는 시도에 해당한다.
+	if (not_present) // 접근한 메모리의 physical page가 존재하지 않은 경우
+	{
+		/* TODO: Validate the fault */
+		// 페이지 폴트가 스택 확장에 대한 유효한 경우인지를 확인한다.
 
-        // 스택 확장으로 처리할 수 있는 폴트인 경우, vm_stack_growth를 호출한다.
+		void *rsp = f->rsp; // user access인 경우 rsp는 유저 stack을 가리킨다.
+		if (!user)			// kernel access인 경우 thread에서 rsp를 가져와야 한다.
+			rsp = thread_current()->stack_rsp;
+
+		// 스택 확장으로 처리할 수 있는 폴트인 경우, vm_stack_growth를 호출한다.
 		// 1. addr이 rsp보다 위에있으면 안되고,
 		// 2. stack_bottom보다 위에 있으면 안되고,
 		// 3. addr이 USER_STACK- (1<<20) 보다 .아래에 있으면 안된다.
 		// if (USER_STACK - (1 << 20) <= rsp - 8  && stack_bottom > addr && addr >= (USER_STACK - (1<<20)) && addr < rsp - 8 )
 		// 	vm_stack_growth(addr);
-        if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 <= addr && addr <= USER_STACK)
-            vm_stack_growth(addr);
+		if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 <= addr && addr <= USER_STACK)
+			vm_stack_growth(addr);
 
-        page = spt_find_page(spt, addr);
-        if (page == NULL)
-            return false;
-        if (write == 1 && page->writable == 0) // write 불가능한 페이지에 write 요청한 경우
-            return false;
-        return vm_do_claim_page(page);
-    }
-    return false;
+		page = spt_find_page(spt, addr);
+		if (page == NULL)
+			return false;
+		if (write == 1 && page->writable == 0) // write 불가능한 페이지에 write 요청한 경우
+			return false;
+		return vm_do_claim_page(page);
+	}
+	return false;
 }
 
 /* Free the page.
@@ -330,11 +343,13 @@ vm_do_claim_page(struct page *page)
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
 	/* 페이지 테이블 항목을 삽입하여 페이지의 VA를 프레임의 PA에 매핑합니다. */
-	/*pml4_get_page는 가상주소를 넣어 해당 물리주소를 찾고 그에 해당하는 
+	/*pml4_get_page는 가상주소를 넣어 해당 물리주소를 찾고 그에 해당하는
 	커널 가상 주소를 반환한다.*/
-	if(pml4_get_page(thread_current()->pml4, page->va) == NULL){
-		if (!pml4_set_page (thread_current ()->pml4, page->va, frame->kva, page->writable)) {
-			vm_dealloc_page (page);
+	if (pml4_get_page(thread_current()->pml4, page->va) == NULL)
+	{
+		if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable))
+		{
+			vm_dealloc_page(page);
 			return false;
 		}
 	}
@@ -353,45 +368,45 @@ void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 /* src에서 dst로 보조 페이지 테이블을 복사합니다. */
 // dst <- src가 직접적으로 이루어지지 않는 이유?
 // 페이지의 모든 정보가 아니라 페이지에서 메타 정보만 뽑아서 로딩은 나중에 한다?
-bool
-supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
-		struct supplemental_page_table *src UNUSED) {
-	
+bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
+								  struct supplemental_page_table *src UNUSED)
+{
+
 	struct hash_iterator i;
 	hash_first(&i, &src->hash_table);
 
-	while(hash_next(&i)){
-		struct page *src_page = hash_entry(hash_cur(&i), struct page , hash_elem);
+	while (hash_next(&i))
+	{
+		struct page *src_page = hash_entry(hash_cur(&i), struct page, hash_elem);
 
 		enum vm_type vm_type = src_page->operations->type;
 		void *va = src_page->va;
 		bool writable = src_page->writable;
 
 		/* 1) type이 uninit이면 */
-        if (vm_type == VM_UNINIT)
-        { // uninit page 생성 & 초기화
-            vm_initializer *init = src_page->uninit.init;
-            void *aux = src_page->uninit.aux;
-            vm_alloc_page_with_initializer(VM_ANON, va, writable, init, aux);
-            continue;
-        }
+		if (vm_type == VM_UNINIT)
+		{ // uninit page 생성 & 초기화
+			vm_initializer *init = src_page->uninit.init;
+			void *aux = src_page->uninit.aux;
+			vm_alloc_page_with_initializer(VM_ANON, va, writable, init, aux);
+			continue;
+		}
 
-        /* 2) type이 uninit이 아니면 */
-        if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
-            // init이랑 aux는 Lazy Loading에 필요함
-            // 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
-            return false;
+		/* 2) type이 uninit이 아니면 */
+		if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
+			// init이랑 aux는 Lazy Loading에 필요함
+			// 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
+			return false;
 
-        // vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
-        if (!vm_claim_page(va))
-            return false;
+		// vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
+		if (!vm_claim_page(va))
+			return false;
 
-        // 매핑된 프레임에 내용 로딩
-        struct page *dst_page = spt_find_page(dst, va);
-        memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
-    }
-    return true;
-	
+		// 매핑된 프레임에 내용 로딩
+		struct page *dst_page = spt_find_page(dst, va);
+		memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+	}
+	return true;
 }
 
 /* Free the resource hold by the supplemental page table */
@@ -401,10 +416,8 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 
-
 	/* 스레드에 의해 보유된 모든 보조 페이지 테이블을 파괴하고
 	 * 변경된 모든 내용을 저장소에 기록하세요. */
 
 	hash_clear(&spt->hash_table, page_destroy);
-
 }
