@@ -10,6 +10,8 @@
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
 static void file_backed_destroy (struct page *page);
+void do_munmap (void *addr);
+void* do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offset);
 
 /* DO NOT MODIFY this struct */
 static const struct page_operations file_ops = {
@@ -60,11 +62,8 @@ file_backed_destroy (struct page *page) {
 void *
 do_mmap (void *addr, size_t length, int writable,
 		struct file *file, off_t offset) {
-
+	
 	struct file *_file = file_reopen(file);
-	if(_file == NULL)
-		return false;
-		
 	void *start_addr = addr;	//매핑 성공 시 파일이 매핑된 가상 주소 반환하는 데 사용
 	
 	size_t read_bytes = file_length(_file) < length ? file_length(_file) : length;
