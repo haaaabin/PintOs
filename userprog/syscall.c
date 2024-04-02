@@ -131,7 +131,7 @@ void syscall_handler (struct intr_frame *f) {
 		close(f->R.rdi);
 		break;
 	case SYS_MMAP:
-		mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
 		break;
 	case SYS_MUNMAP:
 		munmap(f->R.rdi);
@@ -449,6 +449,28 @@ struct file *get_file_from_fd(int fd) {
 /* fd로 열린 파일의 오프셋(offset) 바이트로부터 length 바이트 만큼을 프로세스의 가상 주소 공간의 주소 addr에 매핑한다.
  */
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
+	
+	if(offset % PGSIZE != 0)
+		exit(-1);
+	if(addr == NULL || (uintptr_t)addr % PGSIZE != 0)
+		exit(-1);
+	if(!is_user_vaddr(addr) || !is_user_vaddr(addr + length))
+		exit(-1);
+	if(length <= 0 || length % PGSIZE != 0)
+		exit(-1);
+	if(spt_find_page(&thread_current()->spt, addr) != NULL)
+		exit(-1);	
+	struct file *_file = get_file_from_fd(fd);
+	if(_file == NULL)
+		exit(-1);
+	if(fd == STDIN_FILENO || fd == STDOUT_FILENO)
+		exit(-1);
+	if(file_length(_file) == 0 ||file_length(_file) < 0 )
+		exit(-1);
 
+	return do_mmap(addr, length, writable, _file, offset);
 }
-void munmap (void *addr);
+void munmap (void *addr){
+
+	do_munmap(addr);
+}
