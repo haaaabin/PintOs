@@ -749,7 +749,7 @@ static bool
 setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
-	thread_current()->stack_bottom = stack_bottom;
+	thread_current()->stack_rsp = stack_bottom;
 	// printf("setup_stack \n");
 
 	/* 스택을 stack_bottom에 매핑하고 즉시 페이지를 요구한다.
