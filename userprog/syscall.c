@@ -315,7 +315,7 @@ int read(int fd, void *buffer, unsigned size) {
 		if(_page && !_page->writable){
 			exit(-1);
 		}
-		lock_acquire(&filesys_lock);
+				lock_acquire(&filesys_lock);
 		byte = file_read(_file, buffer, size);
 		lock_release(&filesys_lock);
 	}
@@ -454,35 +454,34 @@ struct file *get_file_from_fd(int fd) {
  */
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
 
-	// 파일의 시작점(offset)이 page-align되지 않았을 때
-	if(offset % PGSIZE != 0){
+	//offset의 값이 PGSIZE에 알맞게 aling되어 있지 않은 경우
+	if(offset % PGSIZE != 0)
 		return NULL;
-	}
-	// 가상 유저 page 시작 주소가 page-align되어있지 않을 때
-	/* failure case 2: 해당 주소의 시작점이 page-align되어 있는지 & user 영역인지 & 주소값이 null인지 & length가 0이하인지*/
-	if(pg_round_down(addr)!= addr || is_kernel_vaddr(addr) || addr == NULL || (long long)length <= 0){
+
+	//addr이 NULL이거나, addr이 page-aligned되지 않았거나 kernel 영역인 경우 
+	if(addr == NULL || addr != pg_round_down(addr) || is_kernel_vaddr(addr))
 		return NULL;
-	}
+
 	// 매핑하려는 페이지가 이미 존재하는 페이지와 겹칠 때(==SPT에 존재하는 페이지일 때)
-	
-	if(spt_find_page(&thread_current()->spt,addr)){
+	if(spt_find_page(&thread_current()->spt, addr))
 		return NULL;
-	}
-	
-	// 콘솔 입출력과 연관된 파일 디스크립터 값(0: STDIN, 1:STDOUT)일 때
-	if(fd == 0 || fd == 1){
-		exit(-1);
-	}
-	// 찾는 파일이 디스크에 없는경우
-	struct file * target = get_file_from_fd(fd);
-	if (target==NULL){
+
+	//찾는 파일이 디스크에 없는 경우
+	struct file *target = get_file_from_fd(fd);
+	if(target == NULL)	
 		return NULL;
-	}
+	
+	//fd로 열린 파일의 길이가 0바이트인 경우, length가 0일 때도 실패
+	if(file_length(target) == 0 || (int)length <= 0)
+		return NULL;
+	
+	//콘솔 입출력과 연관된 파일 디스크립터 값인 경우
+	if(fd == 0 || fd == 1)	
+		return NULL;
 
 	return do_mmap(addr, length, writable, target, offset);
 }
 
 void munmap (void *addr){
-
 	do_munmap(addr);
 }
