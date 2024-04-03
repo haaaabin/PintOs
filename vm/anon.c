@@ -68,6 +68,18 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 anon_swap_in (struct page *page, void *kva) {
 	struct anon_page *anon_page = &page->anon;
+	// 디스크에서 메모리로 데이터 내용을 읽어서 스왑 디스크에서 익명 페이지로 스왑합니다. 
+	// 데이터의 위치는 페이지가 스왑 아웃될 때 페이지 구조에 스왑 디스크가 저장되어 있어야 한다는 것입니다. 
+	// 스왑 테이블을 업데이트해야 합니다.
+	int find_slot = anon_page->swap_sector;
+	if(bitmap_test(swap_table, find_slot) == false) 
+		return false; // 해당 스왑 슬롯이 비어있다면 false 반환
+	for(int i = 0; i<SECTORS_PER_PAGE; i++){
+		disk_read(swap_disk, find_slot * SECTORS_PER_PAGE + i, kva + DISK_SECTOR_SIZE * i);
+	}
+	bitmap_set(swap_table, find_slot, false); // 스왑 테이블 업데이트
+
+	return true; // 성공하면 true 반환
 }
 
 /* Swap out the page by writing contents to the swap disk. */
