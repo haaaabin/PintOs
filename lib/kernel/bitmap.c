@@ -69,6 +69,10 @@ last_mask (const struct bitmap *b) {
    and sets all of its bits to false.
    Returns true if success, false if memory allocation
    failed. */
+ 
+// BIT_CNT 비트의 비트맵을 초기화하고 모든 비트를 false로 설정합니다.
+// 메모리 할당에 성공하면 true를 반환하고, 실패하면 false를 반환합니다.
+
 struct bitmap *
 bitmap_create (size_t bit_cnt) {
 	struct bitmap *b = malloc (sizeof *b);

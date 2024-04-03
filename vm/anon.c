@@ -3,7 +3,8 @@
 
 #include "vm/vm.h"
 #include "devices/disk.h"
-
+#include "include/vm/anon.h"
+#define SECTORS_PER_PAGE = PGSIZE / DISK_SECTOR_SIZE; // 8 = 4096 / 512
 /* DO NOT MODIFY BELOW LINE */
 static struct disk *swap_disk;
 static bool anon_swap_in (struct page *page, void *kva);
@@ -24,7 +25,16 @@ void
 vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
 	/*swap_disk 설정*/
-	swap_disk = NULL;
+	swap_disk = disk_get (1, 1);	//disk.c CHAN_NO로 번호가 매겨진 채널 내의 DEV_NO 번호의 디스크를 반환한다.
+
+	//SECTORS_PER_PAGE = PGSIZE / DISK_SECTOR_SIZE; 8 = 4096 / 512
+	swap_size = disk_size(swap_disk)/SECTORS_PER_PAGE; // 디스크 전체 크기를 몇 개의 페이지로 이루어져있는지 계산한다.
+	// 디스크 섹터는 하드 디스크 내 정보를 저장하는 단위로, 자체적으로 주소를 갖는 storage의 단위다. 
+	// 즉, 한 디스크 당 몇 개의 섹터가 들어가는지를 나눈 값을 swap_size로 지칭한다. 
+	// 즉, 해당 swap_disk를 swap할 때 필요한 섹터 수가 결국 swap_size.
+
+	//swap size 크기만큼 swap_table을 비트맵으로 생성
+	swap_table = bitmap_create(swap_size); // each bit = swap slot for a frame	성공하면 true 실패하면 false 반환
 }
 
 /* Initialize the file mapping */
