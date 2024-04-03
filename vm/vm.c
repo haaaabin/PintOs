@@ -8,6 +8,7 @@
 #include "threads/vaddr.h"
 #include "threads/mmu.h"
 #include "threads/thread.h"
+#include "userprog/process.h"
 
 // 프레임 구조체를 관리하는 frame_table
 //-> 어떠한 함수에서는 이를 초기화시켜야 할 것.
@@ -392,19 +393,48 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 			continue;
 		}
 
-		/* 2) type이 uninit이 아니면 */
-		if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
-			// init이랑 aux는 Lazy Loading에 필요함
-			// 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
-			return false;
+		// if(vm_type == VM_FILE)
+		// {
+		// 	//파일 로딩에 필요한 정보 저장
+		// 	struct lazy_load_arg *file_aux =(struct lazy_load_arg *)malloc(sizeof(struct lazy_load_arg));
+		// 	file_aux->file = src_page->file.file;
+		// 	file_aux->ofs = src_page->file.ofs;
+		// 	file_aux->read_bytes = src_page->file.read_bytes;
+		// 	file_aux->zero_bytes = src_page->file.zero_bytes;
 
-		// vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
-		if (!vm_claim_page(va))
-			return false;
+		// 	//file_aux 구조체를 인자로 전달하여 VM_FILE page 생성 & 초기화
+	 	// 	if(!vm_alloc_page_with_initializer(vm_type, va, writable, NULL, file_aux))
+		// 		return false;
 
-		// 매핑된 프레임에 내용 로딩
-		struct page *dst_page = spt_find_page(dst, va);
-		memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+		// 	//생성된 페이지 가져온다.
+		// 	struct page *file_page = spt_find_page(dst, va);
+		// 	//파일에서 데이터를 읽어와 페이지를 채운다.
+		// 	file_backed_initializer(file_page, vm_type, va);
+
+		// 	//생성된 페이지의 프레임을 원본 페이지의 프레임으로 설정한다.
+		// 	file_page->frame = src_page->frame;
+
+		// 	//페이지 테이블에 페이지 매핑
+		// 	pml4_set_page(thread_current()->pml4, file_page->va, src_page->frame->kva, src_page->writable);
+		// 	continue;
+		// }
+		else{
+
+			/* 2) type이 uninit이 아니면 */
+			if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
+				// init이랑 aux는 Lazy Loading에 필요함
+				// 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
+				return false;
+
+			// vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
+			if (!vm_claim_page(va))
+				return false;
+
+			// 매핑된 프레임에 내용 로딩
+			struct page *dst_page = spt_find_page(dst, va);
+			memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+		}
+		
 	}
 	return true;
 }
@@ -420,4 +450,5 @@ void supplemental_page_table_kill(struct supplemental_page_table *spt UNUSED)
 	 * 변경된 모든 내용을 저장소에 기록하세요. */
 
 	hash_clear(&spt->hash_table, page_destroy);
+	// hash_destroy(&spt->hash_table, page_destroy);
 }
