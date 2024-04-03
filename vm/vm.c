@@ -154,6 +154,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *page U
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
+	hash_delete(&spt->hash_table, &page->hash_elem);
 	vm_dealloc_page (page);
 	return true;
 }

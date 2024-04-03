@@ -472,9 +472,10 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){
 		return NULL;
 	}
-	// if(spt_find_page(&thread_current()->spt,addr)){
-	// 	return NULL;
-	// }
+	//기존 매핑된 페이지 세트와 겹치는 경우 실패해야한다.
+	if(spt_find_page(&thread_current()->spt,addr)){
+		return NULL;
+	}
 	return do_mmap(addr, length, writable, _file, offset);
 }
 // void *
