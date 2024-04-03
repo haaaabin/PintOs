@@ -42,6 +42,30 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
 	struct file_page *file_page UNUSED = &page->file;
+
+	struct lazy_load_arg *page_aux = (struct lazy_load_arg*)file_page->aux;
+	struct file *file = page_aux->file;
+
+	off_t ofs = page_aux->ofs;
+	size_t read_bytes = page_aux->read_bytes;
+	size_t zero_bytes = page_aux->zero_bytes;
+
+	//페이지에 있는 정보들을 가져온다.
+
+	file_seek(file, ofs);
+	// 읽어야할 위치로 이동
+	// 파일 내에서 읽기를 시작할 위치로 파일 포인터를 이동합니다. 
+	// 여기서 ofs는 파일 내에서 데이터를 읽기 시작할 오프셋입니다.
+
+	if (file_read(file, kva, read_bytes) != (int) read_bytes) {
+		return false;
+	}
+	// 파일로부터 읽어들이고 읽어들인 바이트 수가 read_bytes와 같지 않다면 false 반환
+
+	memset(kva + read_bytes, 0, zero_bytes);
+	// 나머지 부분은 0으로 채운다.
+
+	return true;
 }
 
 /* Swap out the page by writeback contents to the file. */
