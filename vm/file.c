@@ -73,6 +73,10 @@ file_backed_swap_in (struct page *page, void *kva) {
 static bool
 file_backed_swap_out (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+	
+	file_backed_destroy(page);
+	
+	return true;
 }
 
 /* Destory the file backed page. PAGE will be freed by the caller. */
