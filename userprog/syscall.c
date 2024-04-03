@@ -219,8 +219,11 @@ int wait(pid_t pid) {
  * 새 파일을 열려면 시스템 호출이 필요한 별도의 작업입니다.
  */
 bool create(const char *file, unsigned initial_size) {
+	lock_acquire(&filesys_lock);
 	check_address(file);
-	return filesys_create(file, initial_size);
+	bool success = filesys_create(file, initial_size);
+	lock_release(&filesys_lock);
+	return success;
 }
 
 /* remove - file이라는 파일을 삭제합니다. 
