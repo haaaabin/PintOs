@@ -11,13 +11,12 @@
 #include "userprog/process.h"
 
 // 프레임 구조체를 관리하는 frame_table
-//-> 어떠한 함수에서는 이를 초기화시켜야 할 것.
 struct list frame_table;
 struct list_elem * clock_ref;
 struct lock frame_table_lock;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
- * intialize codes.
+ * intialize codes.W
  * 각 서브시스템의 초기화 코드를 호출하여 가상 메모리 서브시스템을 초기화합니다.
  */
 void vm_init(void)
@@ -247,7 +246,7 @@ vm_get_frame(void)
 	lock_acquire(&frame_table_lock);
 	list_push_back(&frame_table,&frame->frame_elem);
 	lock_release(&frame_table_lock);
-	
+
 	frame->page = NULL; //새 frame을 가져왔으니 page의 멤버를 초기화
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
