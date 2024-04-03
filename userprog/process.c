@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "intrinsic.h"
+#include "lib/kernel/hash.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -293,9 +294,10 @@ void process_exit (void) {
 		}
 	}
 	palloc_free_multiple(t->fdt, FDT_PAGES);
+	process_cleanup ();
+	hash_destroy(&t->spt.hash_table , NULL);	//NULL-> h->buckest만 해제, hash_clear로 인해 해시는 이미 해제되어있음.
 	sema_up(&t->wait_sema);
 	sema_down(&t->exit_sema);
-	process_cleanup ();
 }
 
 /* Free the current process's resources. */
