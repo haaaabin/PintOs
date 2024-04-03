@@ -32,6 +32,9 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &file_ops;
 
 	struct file_page *file_page = &page->file;
+	file_page->aux = page->uninit.aux;
+    // file_page->file = ((struct lazy_load_arg *)file_page->aux)->file;
+	return true;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -122,18 +125,16 @@ do_munmap (void *addr) {
 		if (page == NULL) {
 			return;
 		}
-		struct lazy_load_arg *page_aux = page->uninit.aux;
+		struct file_page *file_page = &page->file;
+		struct lazy_load_arg *page_aux = (struct lazy_load_arg*)file_page->aux;
 		if(pml4_is_dirty(curr->pml4, page->va)){
-			file_write_at(page_aux->file, addr, page_aux->read_bytes, page_aux->ofs);
+			file_write_at(page_aux->file, page->va, page_aux->read_bytes, page_aux->ofs);
 			pml4_set_dirty(curr->pml4, page->va, false);
 		}
-		else{
-			pml4_clear_page(curr->pml4, page->va);
-			//destroy(page);
-			addr += PGSIZE;
-			page = spt_find_page(&curr->spt, addr);
-			// addr을 다음 주소로 변경
-		}
-		
+		pml4_clear_page(curr->pml4, page->va);
+		//destroy(page);
+		addr += PGSIZE;
+		page = spt_find_page(&curr->spt, addr);
+		// addr을 다음 주소로 변경
 	}
 }

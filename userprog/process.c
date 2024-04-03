@@ -22,6 +22,7 @@
 #ifdef VM
 #include "vm/vm.h"
 #endif
+#include "lib/kernel/hash.h"
 
 static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
@@ -293,9 +294,10 @@ void process_exit (void) {
 		}
 	}
 	palloc_free_multiple(t->fdt, FDT_PAGES);
+	process_cleanup ();
+	hash_destroy(&t->spt.hash_table, NULL);
 	sema_up(&t->wait_sema);
 	sema_down(&t->exit_sema);
-	process_cleanup ();
 }
 
 /* Free the current process's resources. */
