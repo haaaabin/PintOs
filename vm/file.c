@@ -55,7 +55,15 @@ file_backed_swap_out (struct page *page) {
 /* file backed page를 파괴하라. page는 호출자에 의해서 해제 될 것이다.*/
 static void
 file_backed_destroy (struct page *page) {
+	struct thread *curr = thread_current();
 	struct file_page *file_page UNUSED = &page->file;
+	struct lazy_load_arg *page_aux = (struct lazy_load_arg*)file_page->aux;
+
+	if(pml4_is_dirty(curr->pml4, page->va)){
+		file_write_at(page_aux->file, page->va, page_aux->read_bytes, page_aux->ofs);
+		pml4_set_dirty(curr->pml4, page->va, false);
+	}
+	pml4_clear_page(curr->pml4, page->va);
 }
 
 /* Do the mmap */
@@ -125,13 +133,7 @@ do_munmap (void *addr) {
 		if (page == NULL) {
 			return;
 		}
-		struct file_page *file_page = &page->file;
-		struct lazy_load_arg *page_aux = (struct lazy_load_arg*)file_page->aux;
-		if(pml4_is_dirty(curr->pml4, page->va)){
-			file_write_at(page_aux->file, page->va, page_aux->read_bytes, page_aux->ofs);
-			pml4_set_dirty(curr->pml4, page->va, false);
-		}
-		pml4_clear_page(curr->pml4, page->va);
+		file_backed_destroy (page);
 		//destroy(page);
 		addr += PGSIZE;
 		page = spt_find_page(&curr->spt, addr);
