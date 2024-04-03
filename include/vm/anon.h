@@ -6,6 +6,7 @@ struct page;
 enum vm_type;
 
 struct anon_page {
+    int swap_sector; // swap된 내용이 저장되는 sector
 };
 struct bitmap *swap_table; // 0 - empty, 1 - filled
 
