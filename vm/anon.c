@@ -102,8 +102,7 @@ anon_swap_out (struct page *page) {
 	이제 프로세스가 이 페이지에 접근하면 page fault가 뜬다.
 	*/
 
-	//스왑 테이블에서 해당 스왑 슬롯을 사용 중으로 설정한다.
-	bitmap_set(swap_table, empty_slot, true);
+	bitmap_set(swap_table, empty_slot, true); //스왑 테이블에서 해당 스왑 슬롯을 사용 중으로 설정한다.
 	pml4_clear_page(thread_current()->pml4, page->va);
 
 	//페이지에 대한 스왑 인덱스 값을 이 페이지가 저장된 swap slot의 번호로 써준다.
