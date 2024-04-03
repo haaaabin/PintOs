@@ -51,6 +51,12 @@ uninit_new (struct page *page, void *va, vm_initializer *init,
 
 /* Initalize the page on first fault 
    첫 번째 오류 시 페이지 초기화 */
+/*프로세스가 처음 만들어진(UNINIT)페이지에 처음으로 접근할 때 page fault가 발생한다. 
+그러면 page fault handler는 해당 페이지를 디스크에서 프레임으로 swap-in하는데, 
+UNINIT type일 때의 swap_in 함수가 바로 이 함수이다. 즉, UNINIT 페이지 멤버를 초기화해줌으로써 
+페이지 타입을 인자로 주어진 타입(ANON, FILE, PAGE_CACHE)로 변환시켜준다. 
+여기서 만약 segment도 load되지 않은 상태라면 lazy load segment도 진행한다.*/
+
 static bool
 uninit_initialize (struct page *page, void *kva) {
 	struct uninit_page *uninit = &page->uninit;

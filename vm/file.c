@@ -35,6 +35,7 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &file_ops;
 
 	struct file_page *file_page = &page->file;
+	file_page->aux = page->uninit.aux;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -55,7 +56,18 @@ file_backed_swap_out (struct page *page) {
 /* file backed page를 파괴하라. page는 호출자에 의해서 해제 될 것이다.*/
 static void
 file_backed_destroy (struct page *page) {
+	
+	struct thread *t = thread_current();
 	struct file_page *file_page UNUSED = &page->file;
+	struct lazy_load_arg *file_aux =(struct lazy_load_arg *)file_page->aux;
+
+	if(pml4_is_dirty(t->pml4, page->va)){			
+		file_write_at(file_aux->file, page->va, file_aux->read_bytes, file_aux->ofs);
+		pml4_set_dirty(t->pml4, page->va, 0);
+	}
+
+	pml4_clear_page(t->pml4, page->va);
+
 }
 
 /* Do the mmap */
@@ -98,16 +110,15 @@ do_mmap (void *addr, size_t length, int writable,
 /*연결된 물리프레임과의 연결을 끊어준다.*/
 void
 do_munmap (void *addr) {
-
 	while(true){
 		struct thread *t = thread_current();
 		struct page *find_page = spt_find_page(&t->spt, addr);
-		
+
 		if(find_page == NULL){
 			return NULL;
 		}
-
-		struct lazy_load_arg *page_aux = (struct lazy_load_arg *)find_page->uninit.aux;
+		struct file_page *file_page = &find_page->file;
+		struct lazy_load_arg *page_aux = (struct lazy_load_arg *)file_page->aux;
 			
 		if(pml4_is_dirty(t->pml4, find_page->va)){			
 			file_write_at(page_aux->file, addr, page_aux->read_bytes, page_aux->ofs);

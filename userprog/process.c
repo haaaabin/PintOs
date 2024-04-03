@@ -21,6 +21,7 @@
 #include "intrinsic.h"
 #ifdef VM
 #include "vm/vm.h"
+#include "lib/kernel/hash.h"
 #endif
 
 static void process_cleanup (void);
@@ -293,9 +294,11 @@ void process_exit (void) {
 		}
 	}
 	palloc_free_multiple(t->fdt, FDT_PAGES);
+	process_cleanup ();
+	hash_destroy(&t->spt.hash_table,page_destroy);
 	sema_up(&t->wait_sema);
 	sema_down(&t->exit_sema);
-	process_cleanup ();
+
 }
 
 /* Free the current process's resources. */
@@ -571,6 +574,8 @@ static bool install_page (void *upage, void *kpage, bool writable);
  *
  * Return true if successful, false if a memory allocation error
  * or disk read error occurs. */
+
+/*user vm에 파일을 찾고 page를 만든 이후 load 한다.*/
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {

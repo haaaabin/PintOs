@@ -63,7 +63,7 @@ static struct frame *vm_evict_frame(void);
 bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writable,
 									vm_initializer *init, void *aux)
 {
-
+	
 	ASSERT(VM_TYPE(type) != VM_UNINIT)
 
 	struct supplemental_page_table *spt = &thread_current()->spt;
@@ -393,18 +393,21 @@ bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 		}
 
 		/* 2) type이 uninit이 아니면 */
-		if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
-			// init이랑 aux는 Lazy Loading에 필요함
-			// 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
-			return false;
+		else{
+			if (!vm_alloc_page(vm_type, va, writable)) // uninit page 생성 & 초기화
+				// init이랑 aux는 Lazy Loading에 필요함
+				// 지금 만드는 페이지는 기다리지 않고 바로 내용을 넣어줄 것이므로 필요 없음
+				return false;
 
-		// vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
-		if (!vm_claim_page(va))
-			return false;
+			// vm_claim_page으로 요청해서 매핑 & 페이지 타입에 맞게 초기화
+			if (!vm_claim_page(va))
+				return false;
 
-		// 매핑된 프레임에 내용 로딩
-		struct page *dst_page = spt_find_page(dst, va);
-		memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+			// 매핑된 프레임에 내용 로딩
+			struct page *dst_page = spt_find_page(dst, va);
+			memcpy(dst_page->frame->kva, src_page->frame->kva, PGSIZE);
+
+		}
 	}
 	return true;
 }

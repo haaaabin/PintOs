@@ -427,7 +427,7 @@ int add_file_to_fdt(struct file *file) {
 }
 /* remove_file_from_fdt - fd에 해당하는 file을 fdt에서 제거한다.
  */
-void remove_file_from_fdt(int fd) {
+void remove_file_from_fdt(int fd) {           
 	struct thread *t = thread_current();
 	//struct file **_fdt = t->fdt;
 	if (fd < 2 || fd >= FDT_SIZE || t->fdt[fd] == NULL) {
