@@ -256,13 +256,28 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 		// 2. stack_bottom보다 위에 있으면 안되고,
 		// 3. addr이 USER_STACK- (1<<20) 보다 .아래에 있으면 안된다.
 
+		if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 <= addr && addr <= USER_STACK)
+            vm_stack_growth(addr);
+		// //가능
 		// if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK)
         //     vm_stack_growth(addr);
 		// else if (USER_STACK - (1 << 20) <= rsp  &&  rsp <= stack_bottom && stack_bottom <= USER_STACK)
 		// 	vm_stack_growth(addr);
 
-        if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 <= addr && addr <= USER_STACK)
-            vm_stack_growth(addr);
+		// printf("stack_bottom : %p\n", stack_bottom);
+		// printf("addr : %p\n", addr);
+		// printf("rsp : %p\n", rsp);
+		// // printf("USER_STACK : %p\n", USER_STACK);
+		// // printf("USER_STACK - (1 << 20) : %p\n", USER_STACK - (1 << 20));
+		// // printf("rsp - 8 : %p\n", rsp - 8);
+		// // printf("rsp - 8 == addr : %d\n", rsp - 8 == addr);
+		// printf("\n\n\n");
+
+		// //가능
+        // if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK)
+        // 	vm_stack_growth(addr);
+		// else if (USER_STACK - (1 << 20) <= stack_bottom  &&  stack_bottom <= addr && addr <= USER_STACK)
+		// 	vm_stack_growth(addr);
 
         page = spt_find_page(spt, addr);
         if (page == NULL)
@@ -273,6 +288,71 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
     }
     return false;
 }
+//rsp 			1195900888
+//stack_bottom 	1195896832
+//addr 			   4197926
+
+//rsp 			1195900832
+//stack_bottom 	1195896832
+//addr 			   6313800
+
+//rsp 			1195900648
+//stack_bottom 	1195896832
+//addr 			   4198941
+
+//rsp 			1195900352
+//stack_bottom 	1195896832
+//addr 			   4212200
+
+//rsp 			1195900344
+//stack_bottom 	1195896832
+//addr 			   4203073
+
+//stack_bottom 	1195896832
+//rsp 			1195835264
+//addr 			1195835256
+
+//rsp 			1195835216
+//stack_bottom 	1195831296
+//addr 			   6311680
+
+// rsp : 0x4747ffd8 => 				1196952072
+// stack_bottom : 0x4747f000 => 	1196951552
+// addr : 0x400f68 => 				4193848
+
+// rsp : 0x4747ffa0 => 				1196952064
+// stack_bottom : 0x4747f000 => 	1196951552
+// addr : 0x605ce8 => 				6301928
+
+// rsp : 0x4747fee8 => 				1196952040
+// stack_bottom : 0x4747f000 => 	1196951552
+// addr : 0x40135f => 				4194783
+
+// rsp : 0x4747fdc0 => 				1196951776
+// stack_bottom : 0x4747f000 => 	1196951552
+// addr : 0x4046a8 => 				4213960
+
+// rsp : 0x4747fd98 => 				1196951752
+// stack_bottom : 0x4747f000 => 	1196951552
+// addr : 0x402000 => 				4198400
+
+// rsp : 0x4747fdb8 => 				1196951752
+// stack_bottom : 0x4747f000 => 	1196951552
+// addr : 0x403157 => 				4204207
+
+// stack_bottom : 0x4747f000 => 	1196951552
+// rsp : 0x4747ee80 => 				1196936896
+// addr : 0x4747ee78 => 			474801641
+
+// stack_bottom : 0x4747e000 => 	1196949376
+// rsp : 0x4747ee40 => 				1196936880
+// addr : 0x604fc0 => 				6299776
+
+// begin
+// stack_bottom - >	1195896832
+// addr -> 			1195896440
+// rsp -> 	1195896448
+
 
 /* Free the page.
 /* DO NOT MODIFY THIS FUNCTION. */
