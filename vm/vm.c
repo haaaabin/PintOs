@@ -13,6 +13,8 @@
 // 프레임 구조체를 관리하는 frame_table
 //-> 어떠한 함수에서는 이를 초기화시켜야 할 것.
 struct list frame_table;
+struct list_elem * clock_ref;
+struct lock frame_table_lock;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes.
@@ -28,6 +30,9 @@ void vm_init(void)
 	register_inspect_intr();
 	/* DO NOT MODIFY UPPER LINES. */
 	/* TODO: Your code goes here. */
+	list_init(&frame_table);
+	clock_ref = list_begin(&frame_table);
+	lock_init(&frame_table_lock);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -171,9 +176,34 @@ static struct frame *
 vm_get_victim(void)
 {
 	struct frame *victim = NULL;
-	/* TODO: The policy for eviction is up to you. */
-	/* 교체 정책은 여러분이 정하세요. */
+	 /* TODO: The policy for eviction is up to you. */
+	struct thread* curr = thread_current();
+	lock_acquire(&frame_table_lock);
+	for (clock_ref; clock_ref != list_end(&frame_table); clock_ref = list_next(clock_ref)){
+		victim = list_entry(clock_ref,struct frame,frame_elem);
+		//bit가 1인 경우
+		if(pml4_is_accessed(curr->pml4,victim->page->va)){
+			pml4_set_accessed(curr->pml4,victim->page->va,0);
+		}else{
+			lock_release(&frame_table_lock);
+			return victim;
+		}
+	}
+	struct list_elem* start = list_begin(&frame_table);
 
+	for (start; start != list_end(&frame_table); start = list_next(start)){
+		victim = list_entry(start,struct frame,frame_elem);
+		//bit가 1인 경우
+		if(pml4_is_accessed(curr->pml4,victim->page->va)){
+			pml4_set_accessed(curr->pml4,victim->page->va,0);
+		}else{
+			lock_release(&frame_table_lock);
+			return victim;
+		}
+	}
+
+	lock_release(&frame_table_lock);
+	ASSERT(clock_ref != NULL);
 	return victim;
 }
 
@@ -188,8 +218,8 @@ vm_evict_frame(void)
 	struct frame *victim UNUSED = vm_get_victim();
 	/* TODO: swap out the victim and return the evicted frame. */
 	/* 희생자를 교체하고 교체된 프레임을 반환합니다. */
-
-	return NULL;
+	swap_out(victim->page);
+	return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
@@ -204,29 +234,25 @@ vm_evict_frame(void)
 static struct frame *
 vm_get_frame(void)
 {
-	struct frame *frame = malloc(sizeof(struct frame));
-	if (frame == NULL)
-	{
-		PANIC("todo");
+	struct frame *frame = (struct frame*)malloc(sizeof(struct frame)); // user_pool 에서 frame 가져오고, kva return해서 frame에 넣어준다.
+	/* TODO: Fill this function. */
+	frame->kva = palloc_get_page(PAL_USER);
+	if(frame->kva == NULL){ //frame에서 가용한 page가 없다면
+		/* 해당 로직은 evict한 frame을 받아오기에 이미 Frame_Table 존재해서 list_push_back()할 필요 없음 */
+		frame = vm_evict_frame(); // 쫓아냄
+		frame->page = NULL;
+		return frame;
 	}
 
-	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
-
-	if (frame->kva == NULL)
-	{
-		free(frame);
-		PANIC("todo");
-		// return vm_evict_frame();
-	}
-
-	frame->page = NULL;
-
-	ASSERT(frame != NULL);
-	ASSERT(frame->page == NULL);
-
+	lock_acquire(&frame_table_lock);
+	list_push_back(&frame_table,&frame->frame_elem);
+	lock_release(&frame_table_lock);
+	
+	frame->page = NULL; //새 frame을 가져왔으니 page의 멤버를 초기화
+	ASSERT (frame != NULL);
+	ASSERT (frame->page == NULL);
 	return frame;
 }
-
 /* 스택을 확장합니다. */
 static void
 vm_stack_growth(void *addr UNUSED)
