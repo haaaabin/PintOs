@@ -76,6 +76,7 @@ syscall_init (void) {
  * 커널에서 시스템 호출이 발생 했을 때, 실행된다.
  * 시스템 호출을 처리하기 전에 유효한 주소인지 확인한 후, 시스템 호출이 안전하게 실행될 수 있도록 한다.
  */
+// The fourth argument is %r10, not %rcx.
 void syscall_handler (struct intr_frame *f) {
 	frame = f;
 	
@@ -124,6 +125,12 @@ void syscall_handler (struct intr_frame *f) {
 		break;
 	case SYS_CLOSE:
 		close(f->R.rdi);
+		break;
+	case SYS_MMAP:
+		f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+		break;
+	case SYS_MUNMAP:
+		munmap(f->R.rdi);
 		break;
 	default:
 		thread_exit();
@@ -433,4 +440,67 @@ struct file *get_file_from_fd(int fd) {
 		return NULL;
 	else
 		return _fdt[fd];
+}
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
+	struct file *_file = get_file_from_fd(fd);
+	if(offset % PGSIZE != 0){ //-> 해줘야 mmap-bad-off 통과
+		return NULL;
+	}
+	if(_file == NULL){
+		return NULL;
+	}
+	// fd로 열린 파일의 길이가 0바이트인 경우 mmap 호출이 실패할 수 있다.
+	// 파일의 길이가 PGSIZE 의 배수가 아닌 경우, 최종 매핑된 페이지의 일부 바이트가 파일 끝을 넘어 "stick out" 된다.
+	// if(file_length(_file) <= 0 || file_length(_file) % PGSIZE != 0){
+	// 	return NULL;
+	// } -> 이거 하면 안된다. ,,, 
+	// addr이 페이지 정렬되어있지 않거나 매핑된 페이지 범위가 스택 또는 실행 파일 로드시 매핑된 페이지를 포함하여 
+	// 기존 매핑된 페이지 세트와 겹치는 경우 실패해야한다.
+	// 가상 페이지 0이 매핑되지 않았다고 가정하기 때문에 addr이 0이면 실패해야 한다. 
+	if(addr == NULL || addr == 0 || addr != pg_round_down(addr)|| !is_user_vaddr(addr)||
+		!is_user_vaddr(addr + length)){
+		return NULL;
+	}
+	// length가 0인 경우 mmap 은 실패해야 한다.
+	if(length <= 0){
+		return NULL;
+	}
+	// 마지막으로 콘솔 입력 및 출력을 나타내는 fd는 매핑할 수 없다.
+	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){
+		return NULL;
+	}
+	if(spt_find_page(&thread_current()->spt,addr)){
+		return NULL;
+	}
+	return do_mmap(addr, length, writable, _file, offset);
+}
+// void *
+// mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
+// 	// 파일의 시작점(offset)이 page-align되지 않았을 때
+// 	// if(offset % PGSIZE != 0){
+// 	// 	return NULL;
+// 	// }
+// 	// 가상 유저 page 시작 주소가 page-align되어있지 않을 때
+// 	/* failure case 2: 해당 주소의 시작점이 page-align되어 있는지 & user 영역인지 & 주소값이 null인지 & length가 0이하인지*/
+// 	// if(pg_round_down(addr)!= addr || is_kernel_vaddr(addr) || addr == NULL || (long long)length <= 0){
+// 	// 	return NULL;
+// 	// }
+// 	// 매핑하려는 페이지가 이미 존재하는 페이지와 겹칠 때(==SPT에 존재하는 페이지일 때)
+// 	if(spt_find_page(&thread_current()->spt,addr)){
+// 		return NULL;
+// 	}
+// 	// 콘솔 입출력과 연관된 파일 디스크립터 값(0: STDIN, 1:STDOUT)일 때
+// 	if(fd == 0 || fd == 1){
+// 		exit(-1);
+// 	}
+// 	// 찾는 파일이 디스크에 없는경우
+// 	struct file * target = get_file_from_fd(fd);
+// 	if (target==NULL){
+// 		return NULL;
+// 	}
+
+// 	return do_mmap(addr, length, writable, target, offset);
+// }
+void munmap(void *addr) {
+	do_munmap(addr);
 }
