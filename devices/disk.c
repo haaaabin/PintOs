@@ -10,6 +10,8 @@
 
 /* The code in this file is an interface to an ATA (IDE)
    controller.  It attempts to comply to [ATA-3]. */
+// 이 파일의 코드는 ATA(IDE) 컨트롤러와의 인터페이스입니다.
+// [ATA-3]을 준수하려고 노력합니다.
 
 /* ATA command block port addresses. */
 #define reg_data(CHANNEL) ((CHANNEL)->reg_base + 0)     /* Data. */
@@ -25,18 +27,23 @@
 /* ATA control block port addresses.
    (If we supported non-legacy ATA controllers this would not be
    flexible enough, but it's fine for what we do.) */
+// ATA 제어 블록 포트 주소.
+// (비 레거시 ATA 컨트롤러를 지원하는 경우 이것은 충분하지 않을 수 있지만, 우리가 하는 것에 대해서는 괜찮습니다.)
 #define reg_ctl(CHANNEL) ((CHANNEL)->reg_base + 0x206)  /* Control (w/o). */
 #define reg_alt_status(CHANNEL) reg_ctl (CHANNEL)       /* Alt Status (r/o). */
 
 /* Alternate Status Register bits. */
+// 대체 상태 레지스터 비트
 #define STA_BSY 0x80            /* Busy. */
 #define STA_DRDY 0x40           /* Device Ready. */
 #define STA_DRQ 0x08            /* Data Request. */
 
 /* Control Register bits. */
+// 제어 레지스터 비트
 #define CTL_SRST 0x04           /* Software Reset. */
 
 /* Device Register bits. */
+// 디바이스 레지스터 비트
 #define DEV_MBS 0xa0            /* Must be set. */
 #define DEV_LBA 0x40            /* Linear based addressing. */
 #define DEV_DEV 0x10            /* Select device: 0=master, 1=slave. */
@@ -63,6 +70,9 @@ struct disk {
 
 /* An ATA channel (aka controller).
    Each channel can control up to two disks. */
+// ATA 채널 (또는 컨트롤러).
+// 각 채널은 최대 두 개의 디스크를 제어할 수 있습니다.
+
 struct channel {
 	char name[8];               /* Name, e.g. "hd0". */
 	uint16_t reg_base;          /* Base I/O port. */
@@ -77,6 +87,7 @@ struct channel {
 };
 
 /* We support the two "legacy" ATA channels found in a standard PC. */
+// 표준 PC에 있는 두 "레거시" ATA 채널을 지원합니다.
 #define CHANNEL_CNT 2
 static struct channel channels[CHANNEL_CNT];
 
@@ -97,6 +108,7 @@ static void select_device_wait (const struct disk *);
 static void interrupt_handler (struct intr_frame *);
 
 /* Initialize the disk subsystem and detect disks. */
+// 디스크 서브시스템을 초기화하고 디스크를 감지합니다.
 void
 disk_init (void) {
 	size_t chan_no;
@@ -106,6 +118,7 @@ disk_init (void) {
 		int dev_no;
 
 		/* Initialize channel. */
+		// 채널 초기화
 		snprintf (c->name, sizeof c->name, "hd%zu", chan_no);
 		switch (chan_no) {
 			case 0:
@@ -124,6 +137,7 @@ disk_init (void) {
 		sema_init (&c->completion_wait, 0);
 
 		/* Initialize devices. */
+		// 디바이스 초기화
 		for (dev_no = 0; dev_no < 2; dev_no++) {
 			struct disk *d = &c->devices[dev_no];
 			snprintf (d->name, sizeof d->name, "%s:%d", c->name, dev_no);
@@ -137,12 +151,15 @@ disk_init (void) {
 		}
 
 		/* Register interrupt handler. */
+		// 인터럽트 핸들러 등록
 		intr_register_ext (c->irq, interrupt_handler, c->name);
 
 		/* Reset hardware. */
+		// 하드웨어 재설정
 		reset_channel (c);
 
 		/* Distinguish ATA hard disks from other devices. */
+		// 다른 장치와 ATA 하드 디스크를 구별합니다.
 		if (check_device_type (&c->devices[0]))
 			check_device_type (&c->devices[1]);
 
@@ -182,6 +199,14 @@ disk_print_stats (void) {
 1:0 - scratch
 1:1 - swap
 */
+// 해석
+// CHAN_NO로 번호가 매겨진 채널 내의 DEV_NO 번호의 디스크를 반환합니다.
+// 마스터 또는 슬레이브에 대해 각각 0 또는 1입니다.
+// Pintos는 다음과 같이 디스크를 사용합니다.
+// 0:0 - 부트 로더, 명령 줄 인수 및 운영 체제 커널
+// 0:1 - 파일 시스템
+// 1:0 - 스크래치
+// 1:1 - 스왑
 struct disk *
 disk_get (int chan_no, int dev_no) {
 	ASSERT (dev_no == 0 || dev_no == 1);
@@ -196,6 +221,7 @@ disk_get (int chan_no, int dev_no) {
 
 /* Returns the size of disk D, measured in DISK_SECTOR_SIZE-byte
    sectors. */
+// 디스크 D의 크기를 DISK_SECTOR_SIZE 바이트 섹터로 측정한 크기를 반환합니다.
 disk_sector_t
 disk_size (struct disk *d) {
 	ASSERT (d != NULL);
@@ -207,6 +233,9 @@ disk_size (struct disk *d) {
    room for DISK_SECTOR_SIZE bytes.
    Internally synchronizes accesses to disks, so external
    per-disk locking is unneeded. */
+// 디스크 D에서 섹터 SEC_NO를 버퍼로 읽어야 합니다.
+// DISK_SECTOR_SIZE 바이트의 공간이 있어야 합니다.
+// 내부적으로 디스크에 대한 액세스를 동기화하므로 외부 디스크 잠금이 필요하지 않습니다.
 void
 disk_read (struct disk *d, disk_sector_t sec_no, void *buffer) {
 	struct channel *c;
@@ -231,6 +260,9 @@ disk_read (struct disk *d, disk_sector_t sec_no, void *buffer) {
    acknowledged receiving the data.
    Internally synchronizes accesses to disks, so external
    per-disk locking is unneeded. */
+// 버퍼에서 디스크 D로 섹터 SEC_NO를 쓰고, DISK_SECTOR_SIZE 바이트를 포함해야 합니다.
+// 디스크가 데이터를 수신한 후 반환합니다.
+// 내부적으로 디스크에 대한 액세스를 동기화하므로 외부 디스크 당 잠금이 필요하지 않습니다.
 void
 disk_write (struct disk *d, disk_sector_t sec_no, const void *buffer) {
 	struct channel *c;
@@ -251,11 +283,13 @@ disk_write (struct disk *d, disk_sector_t sec_no, const void *buffer) {
 }
 
 /* Disk detection and identification. */
+// 디스크 감지 및 식별
 
 static void print_ata_string (char *string, size_t size);
 
 /* Resets an ATA channel and waits for any devices present on it
    to finish the reset. */
+// ATA 채널을 재설정하고 채널에 있는 장치가 재설정을 완료할 때까지 기다립니다.
 static void
 reset_channel (struct channel *c) {
 	bool present[2];
@@ -263,6 +297,7 @@ reset_channel (struct channel *c) {
 
 	/* The ATA reset sequence depends on which devices are present,
 	   so we start by detecting device presence. */
+	// ATA 재설정 시퀀스는 어떤 장치가 있는지에 따라 달라지므로 장치 존재 여부를 감지하여 시작합니다.
 	for (dev_no = 0; dev_no < 2; dev_no++) {
 		struct disk *d = &c->devices[dev_no];
 
@@ -283,6 +318,7 @@ reset_channel (struct channel *c) {
 
 	/* Issue soft reset sequence, which selects device 0 as a side effect.
 	   Also enable interrupts. */
+	// 부착된 장치가 있으면 소프트 리셋 시퀀스를 발행하고, 부착된 장치가 없으면 소프트 리셋 시퀀스를 발행하지 않습니다.
 	outb (reg_ctl (c), 0);
 	timer_usleep (10);
 	outb (reg_ctl (c), CTL_SRST);
@@ -292,12 +328,14 @@ reset_channel (struct channel *c) {
 	timer_msleep (150);
 
 	/* Wait for device 0 to clear BSY. */
+	// 장치 0이 BSY를 지우기를 기다립니다.
 	if (present[0]) {
 		select_device (&c->devices[0]);
 		wait_while_busy (&c->devices[0]);
 	}
 
 	/* Wait for device 1 to clear BSY. */
+	// 장치 1이 BSY를 지우기를 기다립니다.
 	if (present[1]) {
 		int i;
 
@@ -316,6 +354,9 @@ reset_channel (struct channel *c) {
    if it's possible that a slave (device 1) exists on this
    channel.  If D is device 1 (slave), the return value is not
    meaningful. */
+// 장치 D가 ATA 디스크인지 확인하고 D의 is_ata 멤버를 적절하게 설정합니다.
+// D가 장치 0(마스터)인 경우, 이 채널에 슬레이브(장치 1)가 존재할 수 있는 경우 true를 반환합니다.
+// D가 장치 1(슬레이브)인 경우, 반환 값은 의미가 없습니다.
 static bool
 check_device_type (struct disk *d) {
 	struct channel *c = d->channel;
@@ -342,6 +383,8 @@ check_device_type (struct disk *d) {
 /* Sends an IDENTIFY DEVICE command to disk D and reads the
    response.  Initializes D's capacity member based on the result
    and prints a message describing the disk to the console. */
+// 디스크 D에 IDENTIFY DEVICE 명령을 보내고 응답을 읽습니다.
+// 결과에 따라 D의 용량 멤버를 초기화하고 디스크에 대한 메시지를 콘솔에 출력합니다.
 static void
 identify_ata_device (struct disk *d) {
 	struct channel *c = d->channel;
@@ -352,6 +395,7 @@ identify_ata_device (struct disk *d) {
 	/* Send the IDENTIFY DEVICE command, wait for an interrupt
 	   indicating the device's response is ready, and read the data
 	   into our buffer. */
+	// IDENTIFY DEVICE 명령을 보내고, 장치의 응답이 준비되었음을 나타내는 인터럽트를 기다리고, 데이터를 버퍼로 읽습니다.
 	select_device_wait (d);
 	issue_pio_command (c, CMD_IDENTIFY_DEVICE);
 	sema_down (&c->completion_wait);
@@ -362,9 +406,11 @@ identify_ata_device (struct disk *d) {
 	input_sector (c, id);
 
 	/* Calculate capacity. */
+	// 용량 계산
 	d->capacity = id[60] | ((uint32_t) id[61] << 16);
 
 	/* Print identification message. */
+	// 식별 메시지 출력
 	printf ("%s: detected %'"PRDSNu" sector (", d->name, d->capacity);
 	if (d->capacity > 1024 / DISK_SECTOR_SIZE * 1024 * 1024)
 		printf ("%"PRDSNu" GB",
@@ -385,11 +431,15 @@ identify_ata_device (struct disk *d) {
 /* Prints STRING, which consists of SIZE bytes in a funky format:
    each pair of bytes is in reverse order.  Does not print
    trailing whitespace and/or nulls. */
+// SIZE 바이트로 구성된 STRING을 역방향으로 출력합니다.
+// 마지막 공백 및/또는 널을 출력하지 않습니다.
+// (역방향으로 출력하는 이유는 ATA 디스크가 리틀 엔디안 방식으로 데이터를 저장하기 때문입니다.)
 static void
 print_ata_string (char *string, size_t size) {
 	size_t i;
 
 	/* Find the last non-white, non-null character. */
+	// 마지막 공백이 아닌 문자를 찾습니다.
 	for (; size > 0; size--) {
 		int c = string[(size - 1) ^ 1];
 		if (c != '\0' && !isspace (c))
@@ -404,6 +454,7 @@ print_ata_string (char *string, size_t size) {
 /* Selects device D, waiting for it to become ready, and then
    writes SEC_NO to the disk's sector selection registers.  (We
    use LBA mode.) */
+// 장치 D를 선택하고 준비될 때까지 기다린 다음 디스크의 섹터 선택 레지스터에 SEC_NO를 씁니다. (LBA 모드를 사용합니다.)
 static void
 select_sector (struct disk *d, disk_sector_t sec_no) {
 	struct channel *c = d->channel;
@@ -422,10 +473,12 @@ select_sector (struct disk *d, disk_sector_t sec_no) {
 
 /* Writes COMMAND to channel C and prepares for receiving a
    completion interrupt. */
+// 채널 C에 COMMAND를 쓰고 완료 인터럽트를 수신할 준비를 합니다.
 static void
 issue_pio_command (struct channel *c, uint8_t command) {
 	/* Interrupts must be enabled or our semaphore will never be
 	   up'd by the completion handler. */
+	// 완료 핸들러에 의해 세마포어가 올라가지 않으면 인터럽트가 활성화되어 있어야 합니다.
 	ASSERT (intr_get_level () == INTR_ON);
 
 	c->expecting_interrupt = true;
@@ -434,6 +487,8 @@ issue_pio_command (struct channel *c, uint8_t command) {
 
 /* Reads a sector from channel C's data register in PIO mode into
    SECTOR, which must have room for DISK_SECTOR_SIZE bytes. */
+// PIO 모드에서 채널 C의 데이터 레지스터에서 섹터를 읽어 SECTOR에 저장합니다.
+// SECTOR에는 DISK_SECTOR_SIZE 바이트의 공간이 있어야 합니다.
 static void
 input_sector (struct channel *c, void *sector) {
 	insw (reg_data (c), sector, DISK_SECTOR_SIZE / 2);
@@ -441,6 +496,9 @@ input_sector (struct channel *c, void *sector) {
 
 /* Writes SECTOR to channel C's data register in PIO mode.
    SECTOR must contain DISK_SECTOR_SIZE bytes. */
+// PIO 모드에서 채널 C의 데이터 레지스터에 SECTOR를 씁니다.
+// SECTOR에는 DISK_SECTOR_SIZE 바이트가 있어야 합니다.
+// (PIO 모드는 프로그래밍 인터페이스 입출력 모드로, 데이터를 전송하기 위해 CPU가 직접 데이터를 전송하는 방식입니다.)
 static void
 output_sector (struct channel *c, const void *sector) {
 	outsw (reg_data (c), sector, DISK_SECTOR_SIZE / 2);
@@ -453,6 +511,8 @@ output_sector (struct channel *c, const void *sector) {
 
    As a side effect, reading the status register clears any
    pending interrupt. */
+// 컨트롤러가 비활성 상태가 되어 BSY 및 DRQ 비트가 상태 레지스터에서 지워질 때까지 최대 10초 동안 기다립니다.
+// 부작용으로 상태 레지스터를 읽으면 보류 중인 인터럽트가 지워집니다.
 static void
 wait_until_idle (const struct disk *d) {
 	int i;
@@ -470,6 +530,8 @@ wait_until_idle (const struct disk *d) {
    and then return the status of the DRQ bit.
    The ATA standards say that a disk may take as long as that to
    complete its reset. */
+// 디스크 D가 BSY를 지우기까지 최대 30초 기다린 다음 DRQ 비트의 상태를 반환합니다.
+// ATA 표준에 따르면 디스크가 재설정을 완료하는 데 최대 그만큼 걸릴 수 있습니다.
 static bool
 wait_while_busy (const struct disk *d) {
 	struct channel *c = d->channel;
@@ -491,6 +553,7 @@ wait_while_busy (const struct disk *d) {
 }
 
 /* Program D's channel so that D is now the selected disk. */
+// D의 채널을 프로그램하여 D가 선택된 디스크가 되도록 합니다.
 static void
 select_device (const struct disk *d) {
 	struct channel *c = d->channel;
@@ -504,6 +567,7 @@ select_device (const struct disk *d) {
 
 /* Select disk D in its channel, as select_device(), but wait for
    the channel to become idle before and after. */
+// select_device()와 같이 D의 채널에서 디스크 D를 선택하지만, 전후에 채널이 비활성 상태가 될 때까지 기다립니다.
 static void
 select_device_wait (const struct disk *d) {
 	wait_until_idle (d);
@@ -512,6 +576,7 @@ select_device_wait (const struct disk *d) {
 }
 
 /* ATA interrupt handler. */
+// ATA 인터럽트 핸들러
 static void
 interrupt_handler (struct intr_frame *f) {
 	struct channel *c;
@@ -547,6 +612,12 @@ inspect_write_cnt (struct intr_frame *f) {
  *   @RCX - dev_no of disk to inspect
  * Output:
  *   @RAX - Read/Write count of disk. */
+// 디스크 r/w 카운트를 테스트하는 도구입니다. int 0x43 및 int 0x44를 통해 이 함수를 호출합니다.
+// 입력:
+//   @RDX - 검사할 디스크의 chan_no
+//   @RCX - 검사할 디스크의 dev_no
+// 출력:
+//   @RAX - 디스크의 읽기/쓰기 카운트
 void
 register_disk_inspect_intr (void) {
 	intr_register_int (0x43, 3, INTR_OFF, inspect_read_cnt, "Inspect Disk Read Count");
