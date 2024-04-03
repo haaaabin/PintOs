@@ -462,16 +462,16 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 		return NULL;
 	}
 	// length가 0인 경우 mmap 은 실패해야 한다.
-	if(length <= 0){
+	if((long long)length <= 0){
 		return NULL;
 	}
 	// 마지막으로 콘솔 입력 및 출력을 나타내는 fd는 매핑할 수 없다.
 	if(fd == STDIN_FILENO || fd == STDOUT_FILENO){
 		return NULL;
 	}
-	if(spt_find_page(&thread_current()->spt,addr)){
-		return NULL;
-	}
+	// if(spt_find_page(&thread_current()->spt,addr)){
+	// 	return NULL;
+	// }
 	return do_mmap(addr, length, writable, _file, offset);
 }
 // void *
