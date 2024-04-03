@@ -49,6 +49,30 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
 	struct file_page *file_page UNUSED = &page->file;
+
+	if(page == NULL){
+		return false;
+	}
+
+	//페이지를 로드하기 위한 aux 저장
+	struct lazy_load_arg * aux = (struct lazy_load_arg *)page->uninit.aux;
+	struct file *file = aux->file;
+	off_t offset = aux->ofs;
+	size_t page_read_bytes = aux->read_bytes;
+	size_t page_zero_bytes = PGSIZE - page_read_bytes;
+	
+	//파일에서 읽기 시작 위치를 설정
+	file_seek(file,offset);
+
+	//파일에서 페이지의 내용을 읽어와 메모리에 로드
+	if(file_read(file,kva,page_read_bytes) != (int)page_read_bytes){
+		return false;
+	}
+
+	//페이지의 남은 부분을 0으로 초기화
+	memset(kva + page_read_bytes, 0, page_zero_bytes);
+
+	return true;
 }
 
 /* Swap out the page by writeback contents to the file. */
@@ -56,6 +80,13 @@ file_backed_swap_in (struct page *page, void *kva) {
 static bool
 file_backed_swap_out (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+
+	if(page ==NULL){
+		return false;
+	}
+	//page가 수정되었다면 file에 수정사항을 기록하면서 swap out 시킨다.
+	//dirty check
+	file_backed_destroy(page);	
 }
 
 /* Destory the file backed page. PAGE will be freed by the caller. */
