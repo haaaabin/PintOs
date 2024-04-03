@@ -39,6 +39,7 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	file_page->ofs = lazy_load_arg->ofs;
 	file_page->read_bytes = lazy_load_arg->read_bytes;
 	file_page->zero_bytes = lazy_load_arg->zero_bytes;
+	return true;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -77,8 +78,6 @@ do_mmap (void *addr, size_t length, int writable,
 	struct file *_file = file_reopen(file);
 	void *start_addr = addr;	//매핑 성공 시 파일이 매핑된 가상 주소 반환하는 데 사용
 	
-	// int total_page_count = length <= PGSIZE ? 1: length % PGSIZE ? length / PGSIZE + 1 : length /PGSIZE;
-
 	size_t read_bytes = file_length(_file) < length ? file_length(_file) : length;
 	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
 
@@ -98,9 +97,6 @@ do_mmap (void *addr, size_t length, int writable,
 
 		if(!vm_alloc_page_with_initializer(VM_FILE, addr, writable, lazy_load_segment, lazy_load_arg))
 			return false;
-		
-		// struct page *p = spt_find_page(&thread_current()->spt, start_addr);
-		// p->mapped_page_count = total_page_count;
 
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
@@ -133,14 +129,5 @@ do_munmap (void *addr) {
 			addr += PGSIZE;
 		}
 	}
-	// struct thread *t = thread_current();
-	// struct page *find_page = spt_find_page(&t->spt, addr);
-	// int count = find_page->mapped_page_count;
 
-	// for(int i = 0; i <count; i++){
-	// 	if(find_page)
-	// 		destroy(find_page);
-	// 	addr += PGSIZE;
-	// 	find_page = spt_find_page(&t->spt, addr);
-	// }
 }
