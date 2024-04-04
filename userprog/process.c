@@ -269,10 +269,12 @@ int process_wait (tid_t child_tid) {
 	struct thread *child = get_child_process(child_tid);
 	if (child == NULL)
 		return -1;
+
 	sema_down(&child->wait_sema);
+	int ret = child->exit_status;
 	list_remove(&child->child_elem);
 	sema_up(&child->exit_sema);
-	return child->exit_status;
+	return ret;
 }
 
 /* process_exit - 현재 프로세스를 종료한다.
@@ -287,12 +289,12 @@ void process_exit (void) {
 	 */
 
 	// 스레드의 파일 닫기
-	file_close(t->self_file);
 	for (int fd = 2; fd < FDT_SIZE; fd++) {
 		if (t->fdt[fd] != NULL) {
 			close(fd);
 		}
 	}
+	file_close(t->self_file);
 	palloc_free_multiple(t->fdt, FDT_PAGES);
 	process_cleanup ();
 	hash_destroy(&t->spt.hash_table , NULL);	//NULL-> h->buckest만 해제, hash_clear로 인해 해시는 이미 해제되어있음.
@@ -664,6 +666,12 @@ lazy_load_segment (struct page *page, void *aux) {
 	   2. 주소 VA에서 첫 번째 페이지 오류가 발생하면 호출됩니다. 
 	   3. 이 함수를 호출할 때 VA를 사용할 수 있다.*/
 
+	// void **aux_ = (void **)aux;
+	// struct file *file = ((struct file **)aux_)[0];
+	// size_t *page_read_bytes = ((size_t *)aux_)[1];
+	// size_t *page_zero_bytes = ((size_t *)aux_)[2];
+	// off_t *ofs = ((off_t *)aux_)[3];
+	
 	struct lazy_load_arg *lazy_load_arg = (struct lazy_load_arg *)aux;
 	file_seek(lazy_load_arg->file, lazy_load_arg->ofs);
 
@@ -711,8 +719,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (pg_ofs (upage) == 0);
 	ASSERT (ofs % PGSIZE == 0);
 
-	// printf("load_segment \n");
-
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
@@ -725,7 +731,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		/* lazy_load_segment에 정보를 전달하도록 aux를 설정합니다.*/
-
+		//void **aux = (file, &page_read_bytes, &page_zero_bytes, &ofs);
+		
 		struct lazy_load_arg *lazy_load_arg = (struct lazy_load_arg *)malloc(sizeof(struct lazy_load_arg));
 		lazy_load_arg->file = file;
 		lazy_load_arg->ofs = ofs;
