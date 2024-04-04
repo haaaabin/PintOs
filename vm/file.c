@@ -84,8 +84,10 @@ file_backed_swap_out (struct page *page) {
 	if(page ==NULL){
 		return false;
 	}
-	//page가 수정되었다면 file에 수정사항을 기록하면서 swap out 시킨다.
-	//dirty check
+	//dirty bit를 확인하여 수정되었을 경우
+	//disk에 있는 file에 수정사항을 동기화
+	//해주며 swap out 시킨다.
+
 	file_backed_destroy(page);	
 }
 
@@ -97,7 +99,6 @@ file_backed_destroy (struct page *page) {
 	struct thread *t = thread_current();
 	struct file_page *file_page UNUSED = &page->file;
 	struct lazy_load_arg *file_aux = (struct lazy_load_arg *)file_page->aux;
-	struct thread *t = thread_current();
 
 	if(pml4_is_dirty(t->pml4, page->va)){			
 		file_write_at(file_aux->file, page->va, file_aux->read_bytes, file_aux->ofs);
@@ -165,29 +166,3 @@ do_munmap (void *addr) {
 		addr += PGSIZE;
 	}
 }
-
-// void
-// do_munmap (void *addr) {
-
-// 	while(true){
-// 		struct thread *curr = thread_current();
-// 		struct page *find_page = spt_find_page(&curr->spt, addr);
-		
-// 		if (find_page == NULL) {
-//     		return NULL;
-//     	}
-
-// 		struct file_page *file_page = &find_page->file;
-// 		struct lazy_load_arg* container = (struct lazy_load_arg*)file_page->aux;
-	
-// 		if (pml4_is_dirty(curr->pml4, find_page->va)){
-// 			// 물리 프레임에 변경된 데이터를 다시 디스크 파일에 업데이트 buffer에 있는 데이터를 size만큼, file의 file_ofs부터 써준다.
-// 			file_write_at(container->file, addr, container->read_bytes, container->ofs);
-// 			pml4_set_dirty(curr->pml4, find_page->va,0);
-// 		} 
-
-// 		pml4_clear_page(curr->pml4, find_page->va); 
-		
-// 		addr += PGSIZE;
-// 	}
-// }

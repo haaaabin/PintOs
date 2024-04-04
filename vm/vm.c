@@ -170,7 +170,9 @@ void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 }
 
 /* Get the struct frame, that will be evicted. */
-/* 페이지를 교체할 프레임을 가져옵니다. */
+/* 페이지를 교체할 프레임을 가져옵니다. 
+	clock 알고리즘을 사용하여 구현*/
+
 static struct frame *
 vm_get_victim(void)
 {
@@ -211,9 +213,11 @@ vm_get_victim(void)
 /* 페이지를 교체하고 해당 프레임을 반환합니다.
  * 에러인 경우 NULL을 반환합니다. */
 
+/*vm_get_frame에서 호출됨*/
 static struct frame *
 vm_evict_frame(void)
 {
+	/*vm_get_victim은 교체할 프레임을 반환한다*/
 	struct frame *victim UNUSED = vm_get_victim();
 	/* TODO: swap out the victim and return the evicted frame. */
 	/* 희생자를 교체하고 교체된 프레임을 반환합니다. */

@@ -30,6 +30,7 @@ vm_anon_init (void) {
 	/* TODO: Set up the swap_disk. */
 	/*swap_disk 설정*/
 	swap_disk = disk_get(1,1);
+	/*디스크 전체 크기를 몇 개의 섹터로 이루어 져 있는지 저장*/
 	size_t swap_size = disk_size(swap_disk) / SECTORS_PER_PAGE;
 	
 	//모든 bit들을 false로 초기화, 사용되면 bit를 true로 바꾼다.
@@ -44,7 +45,14 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
-	anon_page->swap_sector = -1;	//-1은 스왑 섹터가 할당되지 않았음
+	anon_page->swap_sector = -1;
+	// -1 하는 이유는 swap_sector가 0부터 시작하기 때문에 0이면 
+	//swap_sector가 할당되었다고 판단할 수 있기 때문이다.
+	// -1로 초기화하여 swap_sector가 할당되지 않았다고 판단한다.
+
+	// 스왑 영역은 PGSIZE 단위로 관리 => 기본적으로 스왑 영역은 디스크이니 섹터로 관리하는데
+	// 이를 페이지 단위로 관리하려면 섹터 단위를 페이지 단위로 바꿔줄 필요가 있음.
+	// 이 단위가 SECTORS_PER_PAGE! (8섹터 당 1페이지 관리)
 	return true;
 }
 
@@ -77,13 +85,19 @@ anon_swap_in (struct page *page, void *kva) {
 /* Swap out the page by writing contents to the swap disk. */
 /*Swap disk에 contents를 기록하여 페이지를 Swap-Out 하라*/
 
+//비트맵을 순회해 false 값을 갖는(=해당 swap slot이 비어있다는 표시) 비트를 찾는다. 
+// 이어서 해당 섹터에 페이지 크기만큼 써줘야 하니 필요한 섹터 수 만큼 disk_write()을 통해 입력해준다. 
+// write 작업이 끝나면 해당 스왑 공간에 페이지가 채워졌으니 bitmap_set()으로 slot이 찼다고 표시해준다. 
+// 그리고 pml4_clear_page()로 물리 프레임에 올라와 있던 페이지를 지운다.
+
 static bool
 anon_swap_out (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
 
 	//swap table에서 page를 할당받을 수 있는 swap slot 찾기
-	//bitmap_scan : 비트맵에서 비트를 검색하여 주어진 범위에서 비트를 찾는다.
+	//bitmap_scan : 비트맵을 순회해 false 값을 갖는 비트를 찾는다.
 	int empty_slot = bitmap_scan(swap_table, 0, 1, false);
+
 	if(empty_slot == BITMAP_ERROR){
 		return false;
 	}
@@ -91,19 +105,19 @@ anon_swap_out (struct page *page) {
 	/*
 	한 페이지를 디스크에 써주기 위해 SECTORS_PER_PAGE 개의 섹터에 저장해야 한다.
 	이때 디스크에 각 섹터 크기의 DISK_SECTOR_SIZE만큼 써준다.
+	i = sector의 index
 	*/
 	for(int i = 0; i <SECTORS_PER_PAGE; i++){
 		disk_write(swap_disk, empty_slot *SECTORS_PER_PAGE + i , page->va + DISK_SECTOR_SIZE * i);
 	}
 
 	/*
-	swap table의 해당 페이지에 대한 swap slot의 비트를 true로 바꿔주고
-	해당 페이지의 PTE에서 present bit를 0으로 바꿔준다.
-	이제 프로세스가 이 페이지에 접근하면 page fault가 뜬다.
+	write 작업이 끝나면 해당 스왑 공간에 페이지가 채워졌으니  bitmap_set()으로 
+	swap slot의 비트를 true로 바꿔 slot이 찼다고 표시해준다.
 	*/
 
 	bitmap_set(swap_table, empty_slot, true); //스왑 테이블에서 해당 스왑 슬롯을 사용 중으로 설정한다.
-	pml4_clear_page(thread_current()->pml4, page->va);
+	pml4_clear_page(thread_current()->pml4, page->va);// pml4_clear_page()로 물리 프레임에 올라와 있던 페이지를 지운다.
 
 	//페이지에 대한 스왑 인덱스 값을 이 페이지가 저장된 swap slot의 번호로 써준다.
 	anon_page->swap_sector = empty_slot;
