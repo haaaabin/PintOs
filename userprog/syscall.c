@@ -174,6 +174,7 @@ void exit(int status) {
  * 전달된 pte_for_each_func의 누락된 부분을 채워야 한다. (가상 주소 참조)
  */
 pid_t fork(const char *thread_name) {
+	
 	return process_fork(thread_name, frame);
 }
 
@@ -214,6 +215,7 @@ int exec(const char *cmd_line) {
  * 	  즉, 프로세스는 최대 한 번만 특정 자식을 기다릴 수 있다.
  */
 int wait(pid_t pid) {
+	
 	return process_wait(pid);
 }
 
@@ -223,8 +225,11 @@ int wait(pid_t pid) {
  * 새 파일을 열려면 시스템 호출이 필요한 별도의 작업입니다.
  */
 bool create(const char *file, unsigned initial_size) {
+	lock_acquire(&filesys_lock);
 	check_address(file);
-	return filesys_create(file, initial_size);
+	bool success = filesys_create(file, initial_size); 
+	lock_release(&filesys_lock);
+	return success;
 }
 
 /* remove - file이라는 파일을 삭제합니다. 
@@ -268,7 +273,6 @@ int open(const char *file) {
 		return -1;
 	}
 	int fd = add_file_to_fdt(file_open);
-	// printf("open %d \n", fd);
 	if (fd == -1)
 		file_close(file_open);
 	lock_release(&filesys_lock);
@@ -300,6 +304,7 @@ int read(int fd, void *buffer, unsigned size) {
 	check_address(buffer);
 	int byte = 0;
 	char *_buffer;
+
 	if (fd == STDIN_FILENO) {
 		_buffer = buffer;
 		while (byte < size) {
@@ -315,7 +320,7 @@ int read(int fd, void *buffer, unsigned size) {
 		if(_page && !_page->writable){
 			exit(-1);
 		}
-				lock_acquire(&filesys_lock);
+		lock_acquire(&filesys_lock);
 		byte = file_read(_file, buffer, size);
 		lock_release(&filesys_lock);
 	}
@@ -375,12 +380,14 @@ unsigned tell(int fd) {
  */
 void close(int fd) {
 	struct file *_file = get_file_from_fd(fd);
+	// lock_acquire(&filesys_lock);
 	if (_file == NULL) {
 		return;
 	}
 	else {
 		file_close(_file);
-		thread_current()->fdt[fd] = NULL;
+		thread_current()->fdt[fd] = NULL;		
+		// lock_release(&filesys_lock);
 	}
 }
 
@@ -459,7 +466,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
 		return NULL;
 
 	//addr이 NULL이거나, addr이 page-aligned되지 않았거나 kernel 영역인 경우 
-	if(addr == NULL || addr != pg_round_down(addr) || is_kernel_vaddr(addr))
+	if(addr == NULL || addr == 0 || addr != pg_round_down(addr) || !is_user_vaddr(addr || !is_user_vaddr(addr + length)))
 		return NULL;
 
 	// 매핑하려는 페이지가 이미 존재하는 페이지와 겹칠 때(==SPT에 존재하는 페이지일 때)
@@ -472,7 +479,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset){
 		return NULL;
 	
 	//fd로 열린 파일의 길이가 0바이트인 경우, length가 0일 때도 실패
-	if(file_length(target) == 0 || (int)length <= 0)
+	if( file_length(target) == 0 || (long long)length <= 0)
 		return NULL;
 	
 	//콘솔 입출력과 연관된 파일 디스크립터 값인 경우

@@ -165,6 +165,7 @@ bool spt_insert_page(struct supplemental_page_table *spt UNUSED, struct page *pa
 
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 {
+	hash_delete(&spt->hash_table, &page->hash_elem);
 	vm_dealloc_page(page);
 	return true;
 }
@@ -236,18 +237,21 @@ vm_get_frame(void)
 	struct frame *frame = (struct frame*)malloc(sizeof(struct frame)); // user_pool 에서 frame 가져오고, kva return해서 frame에 넣어준다.
 	/* TODO: Fill this function. */
 	frame->kva = palloc_get_page(PAL_USER);
+	
 	if(frame->kva == NULL){ //frame에서 가용한 page가 없다면
 		/* 해당 로직은 evict한 frame을 받아오기에 이미 Frame_Table 존재해서 list_push_back()할 필요 없음 */
 		frame = vm_evict_frame(); // 쫓아냄
 		frame->page = NULL;
+		//free(frame);
+		// PANIC("todo);
 		return frame;
 	}
 
 	lock_acquire(&frame_table_lock);
 	list_push_back(&frame_table,&frame->frame_elem);
 	lock_release(&frame_table_lock);
-
 	frame->page = NULL; //새 frame을 가져왔으니 page의 멤버를 초기화
+	
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	return frame;
