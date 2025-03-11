@@ -1,3 +1,12 @@
-Brand new pintos for Operating Systems and Lab (CS330), KAIST, by Youngjin Kwon.
+## [크래프톤 정글] 카이스트 교육용 운영체제 학습을 위한 프로젝트
 
-The manual is available at https://casys-kaist.github.io/pintos-kaist/.
+개발 기간: 2024.03 ~ 2024.04
+
+참여 인원 : 3인
+
+사용 언어 및 개발 환경 : C, Ubuntu, Git
+
+#### 주요 기능
+- Threads 프로젝트에서 스레드의 우선 순위에 따라 CPU를 선점할 수 있도록 donation 기능 구현하여 모든 과제 통과
+- User Programs 프로젝트에서 open, write, fork 등 시스템 콜을 구현하여 3개를 제외하고 모든 과제 통과
+- Virtual Memory 프로젝트에서 보조 페이지 테이블을 활용한 가상 메모리를 구현하여 3개를 제외하고 모든 과제 통과
